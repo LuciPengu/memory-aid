@@ -91,19 +91,60 @@ export const RecordingInterface = ({ onRecordingComplete }: RecordingInterfacePr
     }
   };
 
-  const processRecording = () => {
+  const processRecording = async () => {
     if (recordedAudio) {
-      // Mock transcript for demo - in real app, this would use speech-to-text API
-      const mockTranscript = "This is a sample conversation transcript. In a real application, this would be generated from the actual audio using a speech-to-text service like OpenAI Whisper or Google Speech-to-Text.";
-      onRecordingComplete(recordedAudio, mockTranscript);
-      
-      setRecordedAudio(null);
-      setRecordingTime(0);
-      
-      toast({
-        title: "Processing complete",
-        description: "Ready to identify speakers",
-      });
+      try {
+        toast({
+          title: "Processing audio",
+          description: "Uploading audio and getting transcription...",
+        });
+
+        // Create a temporary URL for the audio blob
+        const audioUrl = URL.createObjectURL(recordedAudio);
+        
+        // Send request to external backend
+        const response = await fetch('YOUR_BACKEND_URL/transcribe', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            audio_url: audioUrl,
+            language: 'en' // Optional: specify language or leave null for auto-detection
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Server error: ${response.status}`);
+        }
+
+        const result = await response.json();
+        
+        // Clean up the temporary URL
+        URL.revokeObjectURL(audioUrl);
+        
+        if (result.transcription) {
+          onRecordingComplete(recordedAudio, result.transcription);
+          
+          setRecordedAudio(null);
+          setRecordingTime(0);
+          
+          toast({
+            title: "Processing complete",
+            description: "Audio transcribed successfully!",
+          });
+        } else {
+          throw new Error('No transcription received from server');
+        }
+        
+      } catch (error) {
+        console.error('Error processing audio:', error);
+        toast({
+          title: "Processing failed",
+          description: error instanceof Error ? error.message : "Failed to process audio",
+          variant: "destructive",
+        });
+      }
     }
   };
 
