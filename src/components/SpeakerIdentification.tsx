@@ -26,16 +26,42 @@ export const SpeakerIdentification = ({
   const [newPersonName, setNewPersonName] = useState("");
   const [isAddingPerson, setIsAddingPerson] = useState(false);
 
+  // Auto-assign speakers based on AI suggestions when component mounts
+  useState(() => {
+    const autoAssignments: { [key: string]: string } = {};
+    const speakerMapping: { [key: string]: string } = {};
+    
+    segments.forEach(segment => {
+      if (segment.suggestedSpeaker) {
+        // Map AI speaker names to people in our list
+        if (!speakerMapping[segment.suggestedSpeaker]) {
+          // Find the next available person or default to first person
+          const availablePerson = people[Object.keys(speakerMapping).length] || people[0];
+          speakerMapping[segment.suggestedSpeaker] = availablePerson?.id;
+        }
+        
+        if (speakerMapping[segment.suggestedSpeaker]) {
+          autoAssignments[segment.id] = speakerMapping[segment.suggestedSpeaker];
+        }
+      }
+    });
+    
+    setSelectedSpeakers(autoAssignments);
+  }, [segments, people]);
+
   // Check if we have structured speaker data from the transcription
   const segments = (() => {
     // Try to get speaker segments from the audio blob metadata
     const audioBlob = (window as any).currentAudioBlob;
     if (audioBlob?.speakerSegments && Array.isArray(audioBlob.speakerSegments)) {
-      return audioBlob.speakerSegments.map((segment: any, index: number) => ({
-        id: index.toString(),
+      return audioBlob.speakerSegments.map((segment: any) => ({
+        id: segment.id || segment.speaker + '_' + segment.start,
         content: segment.text,
-        timestamp: new Date(Date.now() + (segment.timestamp[0] * 1000)), // Convert to milliseconds
-        suggestedSpeaker: segment.speaker, // Store the AI-suggested speaker
+        timestamp: new Date(Date.now() + (segment.start * 1000)), // Convert seconds to milliseconds
+        suggestedSpeaker: segment.speaker, // Store the AI-suggested speaker (Speaker A, Speaker B, etc.)
+        startTime: segment.start,
+        endTime: segment.end,
+        duration: segment.end - segment.start
       }));
     }
     
@@ -148,9 +174,21 @@ export const SpeakerIdentification = ({
           <Card key={segment.id} className="p-4 bg-card border-border">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">
-                  Segment {index + 1}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">
+                    Segment {index + 1}
+                  </span>
+                  {segment.suggestedSpeaker && (
+                    <Badge variant="outline" className="text-xs">
+                      AI: {segment.suggestedSpeaker}
+                    </Badge>
+                  )}
+                  {segment.startTime !== undefined && (
+                    <span className="text-xs text-muted-foreground">
+                      {Math.round(segment.startTime)}s - {Math.round(segment.endTime)}s
+                    </span>
+                  )}
+                </div>
                 {selectedSpeakers[segment.id] && (
                   <Check className="h-4 w-4 text-green-500" />
                 )}

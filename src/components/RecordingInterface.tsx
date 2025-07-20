@@ -130,30 +130,30 @@ export const RecordingInterface = ({
 
         const transcribeResult = await transcribeResponse.json();
 
-        // Handle the structured response format
-        if (transcribeResult && Array.isArray(transcribeResult) && transcribeResult.length > 0) {
-          // Extract the full transcript from the structured data
-          let fullTranscript = "";
-          const speakerSegments = [];
-
-          // Process each segment in the response
-          for (const segment of transcribeResult) {
-            if (segment.speaker && segment.text) {
-              speakerSegments.push({
-                speaker: segment.speaker,
-                text: segment.text.trim(),
-                timestamp: segment.timestamp || [0, 0]
-              });
-              fullTranscript += segment.text;
-            } else if (segment.text && !segment.speaker) {
-              // Handle segments without speaker info
-              fullTranscript += segment.text;
-            }
-          }
+        // Handle the new diarized_conversation payload format
+        if (transcribeResult && 
+            transcribeResult.status === "success" && 
+            transcribeResult.diarized_conversation && 
+            Array.isArray(transcribeResult.diarized_conversation)) {
+          
+          const diarizedSegments = transcribeResult.diarized_conversation;
+          const fullTranscript = transcribeResult.raw_transcription?.text || 
+                                diarizedSegments.map(seg => seg.text).join(' ');
+          
+          // Convert diarized segments to our format
+          const speakerSegments = diarizedSegments.map((segment, index) => ({
+            id: index.toString(),
+            speaker: segment.speaker,
+            text: segment.text.trim(),
+            timestamp: [segment.start, segment.end],
+            start: segment.start,
+            end: segment.end
+          }));
 
           // Store the structured data for later use in speaker identification
           const audioWithMetadata = Object.assign(recordedAudio, {
-            speakerSegments: speakerSegments
+            speakerSegments: speakerSegments,
+            summary: transcribeResult.summary
           });
 
           onRecordingComplete(audioWithMetadata, fullTranscript.trim());
@@ -166,7 +166,7 @@ export const RecordingInterface = ({
             description: `Audio transcribed with ${speakerSegments.length} speaker segments!`,
           });
         } else {
-          throw new Error("Invalid transcription response format");
+          throw new Error("Invalid transcription response format or processing failed");
         }
       } catch (error) {
         console.error("Error processing audio:", error);
