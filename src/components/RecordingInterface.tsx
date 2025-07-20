@@ -98,32 +98,18 @@ export const RecordingInterface = ({
       try {
         toast({
           title: "Processing audio",
-          description: "Uploading audio and getting transcription...",
+          description: "Converting audio and getting transcription...",
         });
 
-        // Step 1: Upload the audio file to get a temporary URL
-        const uploadFormData = new FormData();
-        uploadFormData.append("audio_file", recordedAudio, "recording.wav");
+        // Convert blob to base64 data URL
+        const reader = new FileReader();
+        const audioDataUrl = await new Promise<string>((resolve, reject) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(recordedAudio);
+        });
 
-        const uploadResponse = await fetch(
-          "https://12484f40-7983-4c27-b7d7-4b2f4efa749b-00-zvkwzd4ad4mt.worf.replit.dev/upload",
-          {
-            method: "POST",
-            body: uploadFormData,
-          },
-        );
-
-        if (!uploadResponse.ok) {
-          throw new Error(`Upload failed: ${uploadResponse.status}`);
-        }
-
-        const uploadResult = await uploadResponse.json();
-        
-        if (!uploadResult.audio_url) {
-          throw new Error("No audio URL received from upload");
-        }
-
-        // Step 2: Send the audio URL to transcription endpoint
+        // Send the audio data URL to transcription endpoint
         const transcribeResponse = await fetch(
           "https://12484f40-7983-4c27-b7d7-4b2f4efa749b-00-zvkwzd4ad4mt.worf.replit.dev/transcribe",
           {
@@ -132,7 +118,7 @@ export const RecordingInterface = ({
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              audio_url: uploadResult.audio_url,
+              audio_url: audioDataUrl,
               language: "en",
             }),
           },
