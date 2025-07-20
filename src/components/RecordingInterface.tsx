@@ -8,12 +8,14 @@ interface RecordingInterfaceProps {
   onRecordingComplete: (audioBlob: Blob, transcript: string) => void;
 }
 
-export const RecordingInterface = ({ onRecordingComplete }: RecordingInterfaceProps) => {
+export const RecordingInterface = ({
+  onRecordingComplete,
+}: RecordingInterfaceProps) => {
   const [isRecording, setIsRecording] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [recordedAudio, setRecordedAudio] = useState<Blob | null>(null);
   const [recordingTime, setRecordingTime] = useState(0);
-  
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -31,17 +33,17 @@ export const RecordingInterface = ({ onRecordingComplete }: RecordingInterfacePr
       };
 
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(chunks, { type: 'audio/wav' });
+        const audioBlob = new Blob(chunks, { type: "audio/wav" });
         setRecordedAudio(audioBlob);
-        stream.getTracks().forEach(track => track.stop());
+        stream.getTracks().forEach((track) => track.stop());
       };
 
       mediaRecorder.start();
       setIsRecording(true);
       setRecordingTime(0);
-      
+
       timerRef.current = setInterval(() => {
-        setRecordingTime(prev => prev + 1);
+        setRecordingTime((prev) => prev + 1);
       }, 1000);
 
       toast({
@@ -61,7 +63,7 @@ export const RecordingInterface = ({ onRecordingComplete }: RecordingInterfacePr
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
-      
+
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
@@ -83,7 +85,7 @@ export const RecordingInterface = ({ onRecordingComplete }: RecordingInterfacePr
         audioRef.current.src = audioUrl;
         audioRef.current.play();
         setIsPlaying(true);
-        
+
         audioRef.current.onended = () => {
           setIsPlaying(false);
         };
@@ -101,47 +103,50 @@ export const RecordingInterface = ({ onRecordingComplete }: RecordingInterfacePr
 
         // Create a temporary URL for the audio blob
         const audioUrl = URL.createObjectURL(recordedAudio);
-        
+
         // Send request to external backend
-        const response = await fetch('YOUR_BACKEND_URL/transcribe', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
+        const response = await fetch(
+          "https://12484f40-7983-4c27-b7d7-4b2f4efa749b-00-zvkwzd4ad4mt.worf.replit.dev/transcribe",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              audio_url: audioUrl,
+              language: "en", // Optional: specify language or leave null for auto-detection
+            }),
           },
-          body: JSON.stringify({
-            audio_url: audioUrl,
-            language: 'en' // Optional: specify language or leave null for auto-detection
-          }),
-        });
+        );
 
         if (!response.ok) {
           throw new Error(`Server error: ${response.status}`);
         }
 
         const result = await response.json();
-        
+
         // Clean up the temporary URL
         URL.revokeObjectURL(audioUrl);
-        
+
         if (result.transcription) {
           onRecordingComplete(recordedAudio, result.transcription);
-          
+
           setRecordedAudio(null);
           setRecordingTime(0);
-          
+
           toast({
             title: "Processing complete",
             description: "Audio transcribed successfully!",
           });
         } else {
-          throw new Error('No transcription received from server');
+          throw new Error("No transcription received from server");
         }
-        
       } catch (error) {
-        console.error('Error processing audio:', error);
+        console.error("Error processing audio:", error);
         toast({
           title: "Processing failed",
-          description: error instanceof Error ? error.message : "Failed to process audio",
+          description:
+            error instanceof Error ? error.message : "Failed to process audio",
           variant: "destructive",
         });
       }
@@ -151,7 +156,7 @@ export const RecordingInterface = ({ onRecordingComplete }: RecordingInterfacePr
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
   return (
@@ -167,13 +172,16 @@ export const RecordingInterface = ({ onRecordingComplete }: RecordingInterfacePr
         <div className="space-y-6">
           {/* Recording Visualization */}
           <div className="flex justify-center">
-            <div className={`
+            <div
+              className={`
               relative p-6 md:p-8 rounded-full transition-all duration-300 cursor-pointer touch-manipulation
-              ${isRecording 
-                ? 'bg-gradient-recording shadow-recording animate-pulse-recording' 
-                : 'bg-gradient-primary shadow-glow hover:scale-105 active:scale-95'
+              ${
+                isRecording
+                  ? "bg-gradient-recording shadow-recording animate-pulse-recording"
+                  : "bg-gradient-primary shadow-glow hover:scale-105 active:scale-95"
               }
-            `}>
+            `}
+            >
               <Mic className="h-10 w-10 md:h-12 md:w-12 text-white" />
               {isRecording && (
                 <div className="absolute inset-0 rounded-full border-4 border-white/30 animate-ping"></div>
@@ -182,9 +190,10 @@ export const RecordingInterface = ({ onRecordingComplete }: RecordingInterfacePr
           </div>
 
           {/* Recording Controls */}
-          <div className="space-y-4">{/* rest of controls remain the same */}
+          <div className="space-y-4">
+            {/* rest of controls remain the same */}
             {!isRecording && !recordedAudio && (
-              <Button 
+              <Button
                 onClick={startRecording}
                 size="lg"
                 className="bg-primary hover:bg-primary-glow text-primary-foreground"
@@ -199,11 +208,7 @@ export const RecordingInterface = ({ onRecordingComplete }: RecordingInterfacePr
                 <div className="text-2xl font-mono text-foreground">
                   {formatTime(recordingTime)}
                 </div>
-                <Button 
-                  onClick={stopRecording}
-                  size="lg"
-                  variant="destructive"
-                >
+                <Button onClick={stopRecording} size="lg" variant="destructive">
                   <Square className="mr-2 h-4 w-4" />
                   Stop Recording
                 </Button>
@@ -216,14 +221,15 @@ export const RecordingInterface = ({ onRecordingComplete }: RecordingInterfacePr
                   Recording complete ({formatTime(recordingTime)})
                 </div>
                 <div className="flex gap-3 justify-center">
-                  <Button 
-                    onClick={playRecording}
-                    variant="outline"
-                  >
-                    {isPlaying ? <Pause className="mr-2 h-4 w-4" /> : <Play className="mr-2 h-4 w-4" />}
-                    {isPlaying ? 'Pause' : 'Play'}
+                  <Button onClick={playRecording} variant="outline">
+                    {isPlaying ? (
+                      <Pause className="mr-2 h-4 w-4" />
+                    ) : (
+                      <Play className="mr-2 h-4 w-4" />
+                    )}
+                    {isPlaying ? "Pause" : "Play"}
                   </Button>
-                  <Button 
+                  <Button
                     onClick={processRecording}
                     className="bg-primary hover:bg-primary-glow text-primary-foreground"
                   >
