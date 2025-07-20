@@ -1,0 +1,65 @@
+@app.route('/')
+def index():
+    return 'Hello from Flask!'
+
+@app.route('/transcribe', methods=['POST'])
+def transcribe_audio():
+    try:
+        # Get the audio URL from the request
+        data = request.get_json()
+        if not data or 'audio_url' not in data:
+            return jsonify({'error': 'Missing audio_url in request body'}), 400
+        
+        audio_url = data['audio_url']
+        
+        # Optional parameters
+        language = data.get('language', None)  # None for auto-detection
+        hf_token = data.get('hf_token', None)  # Required for diarization
+        
+        if not hf_token:
+            return jsonify({'error': 'hf_token is required for speaker diarization'}), 400
+        
+        # Prepare the payload for the Hugging Face API
+        payload = {
+            "audio": audio_url,
+            "task": "transcribe",
+            "language": language,
+            "batch_size": 64,
+            "timestamp": "chunk",  # Get chunked timestamps
+            "diarise_audio": True,  # Enable speaker diarization
+            "hf_token": hf_token
+        }
+        
+        # Remove None values
+        payload = {k: v for k, v in payload.items() if v is not None}
+        
+        # Make request to Hugging Face Inference API
+        api_url = "https://api-inference.huggingface.co/models/vaibhavs10/incredibly-fast-whisper"
+        
+        headers = {
+            "Authorization": f"Bearer {hf_token}",
+            "Content-Type": "application/json"
+        }
+        
+        response = requests.post(api_url, json=payload, headers=headers)
+        
+        if response.status_code == 200:
+            result = response.json()
+            
+            processed_result = {
+                "transcription": result.get("text", ""),
+                "segments": result.get("chunks", []),
+                "speakers": result.get("speakers", []),
+                "status": "success"
+            }
+            
+            return jsonify(processed_result)
+        else:
+            return jsonify({
+                'error': 'Failed to transcribe audio',
+                'status_code': response.status_code,
+                'message': response.text
+            }), response.status_code
+            
+    except Exception as e:
+        return jsonify({'error': f'Server error: {str(e)}'}), 500

@@ -1,0 +1,56 @@
+{
+  "name": "Chatter Memory Scribe",
+  "short_name": "Chatter Memory",
+  "description": "AI-powered memory and health assistant with conversation recording and medication management",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0F0F23",
+  "theme_color": "#8B5CF6",
+  "orientation": "portrait",
+  "categories": ["health", "productivity", "lifestyle"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Record Conversation",
+      "url": "/?tab=record",
+      "description": "Start recording a new conversation"
+    },
+    {
+      "name": "Manage Medications",
+      "url": "/?tab=meds",
+      "description": "View and manage your medications"
+    },
+    {
+      "name": "Chat with Memories",
+      "url": "/?tab=chat",
+      "description": "Chat with your conversation history"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-wide.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide"
+    },
+    {
+      "src": "/screenshot-narrow.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ]
+}

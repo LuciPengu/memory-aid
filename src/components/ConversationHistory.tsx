@@ -1,0 +1,196 @@
+import { useState } from "react";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Search, Calendar, Users, ChevronDown, ChevronRight, Clock } from "lucide-react";
+import { Conversation } from "./MemoryApp";
+
+interface ConversationHistoryProps {
+  conversations: Conversation[];
+}
+
+export const ConversationHistory = ({ conversations }: ConversationHistoryProps) => {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [expandedConversations, setExpandedConversations] = useState<Set<string>>(new Set());
+
+  const filteredConversations = conversations.filter(conversation => {
+    const searchTerm = searchQuery.toLowerCase();
+    return (
+      conversation.title.toLowerCase().includes(searchTerm) ||
+      conversation.participants.some(p => p.toLowerCase().includes(searchTerm)) ||
+      conversation.segments.some(s => s.content.toLowerCase().includes(searchTerm))
+    );
+  });
+
+  const toggleExpanded = (conversationId: string) => {
+    setExpandedConversations(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(conversationId)) {
+        newSet.delete(conversationId);
+      } else {
+        newSet.add(conversationId);
+      }
+      return newSet;
+    });
+  };
+
+  const formatDate = (date: Date) => {
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - date.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 1) return "Today";
+    if (diffDays === 2) return "Yesterday";
+    if (diffDays <= 7) return `${diffDays - 1} days ago`;
+    
+    return date.toLocaleDateString();
+  };
+
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="text-center">
+        <h2 className="text-2xl font-semibold mb-2">Conversation History</h2>
+        <p className="text-muted-foreground">
+          Browse and search through all your recorded conversations
+        </p>
+      </div>
+
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search conversations..."
+          className="pl-10"
+        />
+      </div>
+
+      {/* Conversations List */}
+      <div className="space-y-4">
+        {filteredConversations.length === 0 ? (
+          <Card className="p-8 text-center bg-secondary/30">
+            <div className="space-y-2">
+              <Calendar className="h-12 w-12 text-muted-foreground mx-auto" />
+              <h3 className="text-lg font-medium">
+                {searchQuery ? "No conversations found" : "No conversations yet"}
+              </h3>
+              <p className="text-muted-foreground">
+                {searchQuery 
+                  ? "Try different search terms or check your spelling"
+                  : "Start recording conversations to see them here"
+                }
+              </p>
+            </div>
+          </Card>
+        ) : (
+          filteredConversations.map((conversation) => {
+            const isExpanded = expandedConversations.has(conversation.id);
+            
+            return (
+              <Card key={conversation.id} className="bg-card border-border overflow-hidden">
+                <Collapsible open={isExpanded} onOpenChange={() => toggleExpanded(conversation.id)}>
+                  <CollapsibleTrigger asChild>
+                    <Button variant="ghost" className="w-full p-4 h-auto justify-start hover:bg-secondary/50">
+                      <div className="flex items-start gap-3 w-full">
+                        <div className="flex-shrink-0 mt-1">
+                          {isExpanded ? (
+                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </div>
+                        
+                        <div className="flex-1 text-left space-y-2">
+                          <div className="flex items-center justify-between">
+                            <h3 className="font-medium text-foreground">{conversation.title}</h3>
+                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                              <Clock className="h-3 w-3" />
+                              {formatDate(conversation.date)}
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-2">
+                            <Users className="h-3 w-3 text-muted-foreground" />
+                            <div className="flex items-center gap-1">
+                              {conversation.participants.slice(0, 3).map((participant, index) => (
+                                <Badge key={index} variant="secondary" className="text-xs">
+                                  {participant}
+                                </Badge>
+                              ))}
+                              {conversation.participants.length > 3 && (
+                                <Badge variant="secondary" className="text-xs">
+                                  +{conversation.participants.length - 3}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          
+                          <p className="text-sm text-muted-foreground line-clamp-2">
+                            {conversation.segments[0]?.content.substring(0, 100)}...
+                          </p>
+                        </div>
+                      </div>
+                    </Button>
+                  </CollapsibleTrigger>
+                  
+                  <CollapsibleContent>
+                    <Separator />
+                    <div className="p-4 space-y-4">
+                      <div className="text-sm text-muted-foreground">
+                        {conversation.segments.length} segments • {formatTime(conversation.date)}
+                      </div>
+                      
+                      <div className="space-y-3">
+                        {conversation.segments.map((segment, index) => (
+                          <div key={segment.id} className="flex gap-3">
+                            <Avatar className="h-8 w-8 flex-shrink-0">
+                              <AvatarFallback className="text-xs bg-secondary">
+                                {segment.speakerName.split(' ').map(n => n[0]).join('').toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            
+                            <div className="flex-1 space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium text-foreground">
+                                  {segment.speakerName}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  {formatTime(segment.timestamp)}
+                                </span>
+                              </div>
+                              <p className="text-sm text-foreground leading-relaxed">
+                                {segment.content}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              </Card>
+            );
+          })
+        )}
+      </div>
+
+      {/* Summary */}
+      {filteredConversations.length > 0 && (
+        <Card className="p-4 bg-secondary/30">
+          <div className="text-center text-sm text-muted-foreground">
+            Showing {filteredConversations.length} of {conversations.length} conversations
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+};
