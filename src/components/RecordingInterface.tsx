@@ -101,28 +101,51 @@ export const RecordingInterface = ({
           description: "Uploading audio and getting transcription...",
         });
 
-        // Create FormData to send the audio file
-        const formData = new FormData();
-        formData.append("audio_file", recordedAudio, "recording.wav");
-        formData.append("language", "en");
+        // Step 1: Upload the audio file to get a temporary URL
+        const uploadFormData = new FormData();
+        uploadFormData.append("audio_file", recordedAudio, "recording.wav");
 
-        // Send request to external backend
-        const response = await fetch(
-          "https://12484f40-7983-4c27-b7d7-4b2f4efa749b-00-zvkwzd4ad4mt.worf.replit.dev/transcribe",
+        const uploadResponse = await fetch(
+          "https://12484f40-7983-4c27-b7d7-4b2f4efa749b-00-zvkwzd4ad4mt.worf.replit.dev/upload",
           {
             method: "POST",
-            body: formData,
+            body: uploadFormData,
           },
         );
 
-        if (!response.ok) {
-          throw new Error(`Server error: ${response.status}`);
+        if (!uploadResponse.ok) {
+          throw new Error(`Upload failed: ${uploadResponse.status}`);
         }
 
-        const result = await response.json();
+        const uploadResult = await uploadResponse.json();
+        
+        if (!uploadResult.audio_url) {
+          throw new Error("No audio URL received from upload");
+        }
 
-        if (result.transcription) {
-          onRecordingComplete(recordedAudio, result.transcription);
+        // Step 2: Send the audio URL to transcription endpoint
+        const transcribeResponse = await fetch(
+          "https://12484f40-7983-4c27-b7d7-4b2f4efa749b-00-zvkwzd4ad4mt.worf.replit.dev/transcribe",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              audio_url: uploadResult.audio_url,
+              language: "en",
+            }),
+          },
+        );
+
+        if (!transcribeResponse.ok) {
+          throw new Error(`Transcription failed: ${transcribeResponse.status}`);
+        }
+
+        const transcribeResult = await transcribeResponse.json();
+
+        if (transcribeResult.transcription) {
+          onRecordingComplete(recordedAudio, transcribeResult.transcription);
 
           setRecordedAudio(null);
           setRecordingTime(0);
