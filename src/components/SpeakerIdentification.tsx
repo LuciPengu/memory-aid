@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -26,29 +26,6 @@ export const SpeakerIdentification = ({
   const [newPersonName, setNewPersonName] = useState("");
   const [isAddingPerson, setIsAddingPerson] = useState(false);
 
-  // Auto-assign speakers based on AI suggestions when component mounts
-  useState(() => {
-    const autoAssignments: { [key: string]: string } = {};
-    const speakerMapping: { [key: string]: string } = {};
-    
-    segments.forEach(segment => {
-      if (segment.suggestedSpeaker) {
-        // Map AI speaker names to people in our list
-        if (!speakerMapping[segment.suggestedSpeaker]) {
-          // Find the next available person or default to first person
-          const availablePerson = people[Object.keys(speakerMapping).length] || people[0];
-          speakerMapping[segment.suggestedSpeaker] = availablePerson?.id;
-        }
-        
-        if (speakerMapping[segment.suggestedSpeaker]) {
-          autoAssignments[segment.id] = speakerMapping[segment.suggestedSpeaker];
-        }
-      }
-    });
-    
-    setSelectedSpeakers(autoAssignments);
-  }, [segments, people]);
-
   // Check if we have structured speaker data from the transcription
   const segments = (() => {
     // Try to get speaker segments from the audio blob metadata
@@ -72,6 +49,29 @@ export const SpeakerIdentification = ({
       timestamp: new Date(Date.now() + index * 30000), // 30 seconds apart
     }));
   })();
+
+  // Auto-assign speakers based on AI suggestions when component mounts
+  useEffect(() => {
+    const autoAssignments: { [key: string]: string } = {};
+    const speakerMapping: { [key: string]: string } = {};
+    
+    segments.forEach(segment => {
+      if (segment.suggestedSpeaker) {
+        // Map AI speaker names to people in our list
+        if (!speakerMapping[segment.suggestedSpeaker]) {
+          // Find the next available person or default to first person
+          const availablePerson = people[Object.keys(speakerMapping).length] || people[0];
+          speakerMapping[segment.suggestedSpeaker] = availablePerson?.id;
+        }
+        
+        if (speakerMapping[segment.suggestedSpeaker]) {
+          autoAssignments[segment.id] = speakerMapping[segment.suggestedSpeaker];
+        }
+      }
+    });
+    
+    setSelectedSpeakers(autoAssignments);
+  }, [segments, people]);
 
   const handleSpeakerSelect = (segmentId: string, speakerId: string) => {
     setSelectedSpeakers(prev => ({
