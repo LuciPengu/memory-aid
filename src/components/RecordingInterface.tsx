@@ -101,21 +101,17 @@ export const RecordingInterface = ({
           description: "Uploading audio and getting transcription...",
         });
 
-        // Create a temporary URL for the audio blob
-        const audioUrl = URL.createObjectURL(recordedAudio);
+        // Create FormData to send the audio file
+        const formData = new FormData();
+        formData.append("audio_file", recordedAudio, "recording.wav");
+        formData.append("language", "en");
 
         // Send request to external backend
         const response = await fetch(
           "https://12484f40-7983-4c27-b7d7-4b2f4efa749b-00-zvkwzd4ad4mt.worf.replit.dev/transcribe",
           {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              audio_url: audioUrl,
-              language: "en", // Optional: specify language or leave null for auto-detection
-            }),
+            body: formData,
           },
         );
 
@@ -124,9 +120,6 @@ export const RecordingInterface = ({
         }
 
         const result = await response.json();
-
-        // Clean up the temporary URL
-        URL.revokeObjectURL(audioUrl);
 
         if (result.transcription) {
           onRecordingComplete(recordedAudio, result.transcription);
