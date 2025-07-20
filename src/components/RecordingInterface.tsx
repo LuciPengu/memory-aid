@@ -130,18 +130,43 @@ export const RecordingInterface = ({
 
         const transcribeResult = await transcribeResponse.json();
 
-        if (transcribeResult.transcription) {
-          onRecordingComplete(recordedAudio, transcribeResult.transcription);
+        // Handle the structured response format
+        if (transcribeResult && Array.isArray(transcribeResult) && transcribeResult.length > 0) {
+          // Extract the full transcript from the structured data
+          let fullTranscript = "";
+          const speakerSegments = [];
+
+          // Process each segment in the response
+          for (const segment of transcribeResult) {
+            if (segment.speaker && segment.text) {
+              speakerSegments.push({
+                speaker: segment.speaker,
+                text: segment.text.trim(),
+                timestamp: segment.timestamp || [0, 0]
+              });
+              fullTranscript += segment.text;
+            } else if (segment.text && !segment.speaker) {
+              // Handle segments without speaker info
+              fullTranscript += segment.text;
+            }
+          }
+
+          // Store the structured data for later use in speaker identification
+          const audioWithMetadata = Object.assign(recordedAudio, {
+            speakerSegments: speakerSegments
+          });
+
+          onRecordingComplete(audioWithMetadata, fullTranscript.trim());
 
           setRecordedAudio(null);
           setRecordingTime(0);
 
           toast({
             title: "Processing complete",
-            description: "Audio transcribed successfully!",
+            description: `Audio transcribed with ${speakerSegments.length} speaker segments!`,
           });
         } else {
-          throw new Error("No transcription received from server");
+          throw new Error("Invalid transcription response format");
         }
       } catch (error) {
         console.error("Error processing audio:", error);

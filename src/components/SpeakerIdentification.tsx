@@ -26,12 +26,26 @@ export const SpeakerIdentification = ({
   const [newPersonName, setNewPersonName] = useState("");
   const [isAddingPerson, setIsAddingPerson] = useState(false);
 
-  // Mock parsing of transcript into segments
-  const segments = transcript.split('.').filter(s => s.trim()).map((segment, index) => ({
-    id: index.toString(),
-    content: segment.trim() + '.',
-    timestamp: new Date(Date.now() + index * 30000), // 30 seconds apart
-  }));
+  // Check if we have structured speaker data from the transcription
+  const segments = (() => {
+    // Try to get speaker segments from the audio blob metadata
+    const audioBlob = (window as any).currentAudioBlob;
+    if (audioBlob?.speakerSegments && Array.isArray(audioBlob.speakerSegments)) {
+      return audioBlob.speakerSegments.map((segment: any, index: number) => ({
+        id: index.toString(),
+        content: segment.text,
+        timestamp: new Date(Date.now() + (segment.timestamp[0] * 1000)), // Convert to milliseconds
+        suggestedSpeaker: segment.speaker, // Store the AI-suggested speaker
+      }));
+    }
+    
+    // Fallback to simple sentence splitting
+    return transcript.split('.').filter(s => s.trim()).map((segment, index) => ({
+      id: index.toString(),
+      content: segment.trim() + '.',
+      timestamp: new Date(Date.now() + index * 30000), // 30 seconds apart
+    }));
+  })();
 
   const handleSpeakerSelect = (segmentId: string, speakerId: string) => {
     setSelectedSpeakers(prev => ({

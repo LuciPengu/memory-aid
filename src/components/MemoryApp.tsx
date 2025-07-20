@@ -77,6 +77,8 @@ const MemoryApp = () => {
 
   const handleRecordingComplete = (audioBlob: Blob, transcript: string) => {
     setCurrentRecording({ audioBlob, transcript });
+    // Store the audio blob globally so SpeakerIdentification can access the speaker data
+    (window as any).currentAudioBlob = audioBlob;
     setActiveTab("identify");
   };
 
