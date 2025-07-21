@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, User, Check, Edit2, Save, X } from "lucide-react";
 import { Person, ConversationSegment } from "./MemoryApp";
+import { useAuth } from "./useAuth";
 
 interface SpeakerIdentificationProps {
   transcript: string;
@@ -29,9 +30,11 @@ export const SpeakerIdentification = ({
   const [editingSegments, setEditingSegments] = useState<{ [key: string]: boolean }>({});
   const [editedTexts, setEditedTexts] = useState<{ [key: string]: string }>({});
   const [speakerMapping, setSpeakerMapping] = useState<{ [key: string]: string }>({});
+  const { currentUser } = useAuth();
 
-  // Check if we have structured speaker data from the transcription
-  const segments = (() => {
+  useEffect(() => {
+    // Check if we have structured speaker data from the transcription
+    const segments = (() => {
     // Try to get speaker segments from the audio blob metadata
     const audioBlob = (window as any).currentAudioBlob;
     if (audioBlob?.speakerSegments && Array.isArray(audioBlob.speakerSegments)) {
@@ -64,7 +67,7 @@ export const SpeakerIdentification = ({
 
     // Get unique AI speakers
     const aiSpeakers = [...new Set(segments.map(s => s.suggestedSpeaker).filter(Boolean))];
-    
+
     // Auto-map AI speakers to people
     aiSpeakers.forEach((aiSpeaker, index) => {
       const assignedPerson = people[index] || people[0];
@@ -175,12 +178,15 @@ export const SpeakerIdentification = ({
 
       console.log('Sending conversation to server:', conversationData);
 
+      const idToken = currentUser ? await currentUser.getIdToken() : null;
+
       const response = await fetch(
         "https://12484f40-7983-4c27-b7d7-4b2f4efa749b-00-zvkwzd4ad4mt.worf.replit.dev/save-conversation",
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
           },
           body: JSON.stringify(conversationData),
         }
@@ -306,7 +312,7 @@ export const SpeakerIdentification = ({
             {Object.entries(speakerMapping).map(([aiSpeaker, currentPersonId]) => {
               const currentPerson = people.find(p => p.id === currentPersonId);
               const segmentCount = segments.filter(s => s.suggestedSpeaker === aiSpeaker).length;
-              
+
               return (
                 <div key={aiSpeaker} className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg border">
                   <div className="flex items-center gap-3">
@@ -315,7 +321,7 @@ export const SpeakerIdentification = ({
                     </Badge>
                     <span className="text-xs text-muted-foreground">({segmentCount} segments)</span>
                   </div>
-                  
+
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground">is actually:</span>
                     <div className="flex gap-1">
