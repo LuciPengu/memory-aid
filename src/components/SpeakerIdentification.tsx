@@ -10,6 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus, User, Check, Edit2, Save, X } from "lucide-react";
 import { Person, ConversationSegment } from "./MemoryApp";
 import { useAuth } from "@/contexts/AuthContext";
+import { addPerson } from "@/lib/firestore";
+import { useToast } from "@/hooks/use-toast";
 
 interface SpeakerIdentificationProps {
   transcript: string;
@@ -31,6 +33,7 @@ export const SpeakerIdentification = ({
   const [editedTexts, setEditedTexts] = useState<{ [key: string]: string }>({});
   const [speakerMapping, setSpeakerMapping] = useState<{ [key: string]: string }>({});
   const { currentUser } = useAuth();
+  const { toast } = useToast();
 
   // Check if we have structured speaker data from the transcription
   const segments = (() => {
@@ -99,11 +102,31 @@ export const SpeakerIdentification = ({
     });
   };
 
-  const handleAddNewPerson = () => {
-    if (newPersonName.trim()) {
-      onAddNewPerson(newPersonName.trim());
-      setNewPersonName("");
-      setIsAddingPerson(false);
+  const handleAddNewPerson = async () => {
+    if (newPersonName.trim() && currentUser) {
+      try {
+        console.log("Adding new person:", newPersonName.trim());
+        const newPerson = await addPerson(currentUser.uid, newPersonName.trim());
+        
+        if (newPerson) {
+          console.log("Person added successfully:", newPerson);
+          onAddNewPerson(newPersonName.trim());
+          setNewPersonName("");
+          setIsAddingPerson(false);
+          
+          toast({
+            title: "Person added",
+            description: `${newPersonName.trim()} has been added to your contacts`,
+          });
+        }
+      } catch (error) {
+        console.error("Error adding person:", error);
+        toast({
+          title: "Error",
+          description: "Failed to add person. Please try again.",
+          variant: "destructive",
+        });
+      }
     }
   };
 

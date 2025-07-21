@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { RecordingInterface } from "./RecordingInterface";
 import { SpeakerIdentification } from "./SpeakerIdentification";
@@ -10,6 +10,7 @@ import { Mic, MessageCircle, History, Users, Pill } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import AuthPage from "./Auth/AuthPage";
 import UserProfile from "./UserProfile";
+import { subscribeToPeople } from "@/lib/firestore";
 
 export interface Person {
   id: string;
@@ -42,6 +43,28 @@ export const MemoryApp = () => {
     transcript?: string;
   } | null>(null);
   const [activeTab, setActiveTab] = useState("meds");
+
+  // Subscribe to people changes from Firestore
+  useEffect(() => {
+    if (!currentUser) return;
+
+    console.log("Setting up people subscription for user:", currentUser.uid);
+    const unsubscribe = subscribeToPeople(currentUser.uid, (updatedPeople) => {
+      console.log("People data updated:", updatedPeople);
+      // Convert Firestore Person format to local Person format
+      const localPeople = updatedPeople.map(person => ({
+        id: person.id,
+        name: person.name,
+        avatar: undefined // Keep existing avatar field structure
+      }));
+      setPeople(localPeople);
+    });
+
+    return () => {
+      console.log("Unsubscribing from people updates");
+      unsubscribe();
+    };
+  }, [currentUser]);
 
   // Show auth page if user is not logged in
   if (!currentUser) {
