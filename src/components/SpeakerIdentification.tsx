@@ -28,6 +28,7 @@ export const SpeakerIdentification = ({
   const [isAddingPerson, setIsAddingPerson] = useState(false);
   const [editingSegments, setEditingSegments] = useState<{ [key: string]: boolean }>({});
   const [editedTexts, setEditedTexts] = useState<{ [key: string]: string }>({});
+  const [speakerMapping, setSpeakerMapping] = useState<{ [key: string]: string }>({});
 
   // Check if we have structured speaker data from the transcription
   const segments = (() => {
@@ -56,20 +57,25 @@ export const SpeakerIdentification = ({
   // Auto-assign speakers based on AI suggestions when component mounts
   useEffect(() => {
     const autoAssignments: { [key: string]: string } = {};
-    const speakerMapping: { [key: string]: string } = {};
+    const initialSpeakerMapping: { [key: string]: string } = {};
 
+    // Get unique AI speakers
+    const aiSpeakers = [...new Set(segments.map(s => s.suggestedSpeaker).filter(Boolean))];
+    
+    // Auto-map AI speakers to people
+    aiSpeakers.forEach((aiSpeaker, index) => {
+      const assignedPerson = people[index] || people[0];
+      if (assignedPerson) {
+        initialSpeakerMapping[aiSpeaker] = assignedPerson.id;
+      }
+    });
+
+    setSpeakerMapping(initialSpeakerMapping);
+
+    // Assign segments based on mapping
     segments.forEach(segment => {
-      if (segment.suggestedSpeaker) {
-        // Map AI speaker names to people in our list
-        if (!speakerMapping[segment.suggestedSpeaker]) {
-          // Find the next available person or default to first person
-          const availablePerson = people[Object.keys(speakerMapping).length] || people[0];
-          speakerMapping[segment.suggestedSpeaker] = availablePerson?.id;
-        }
-
-        if (speakerMapping[segment.suggestedSpeaker]) {
-          autoAssignments[segment.id] = speakerMapping[segment.suggestedSpeaker];
-        }
+      if (segment.suggestedSpeaker && initialSpeakerMapping[segment.suggestedSpeaker]) {
+        autoAssignments[segment.id] = initialSpeakerMapping[segment.suggestedSpeaker];
       }
     });
 
@@ -164,6 +170,24 @@ export const SpeakerIdentification = ({
     });
   };
 
+  const handleSpeakerMappingChange = (aiSpeaker: string, personId: string) => {
+    setSpeakerMapping(prev => ({
+      ...prev,
+      [aiSpeaker]: personId
+    }));
+
+    // Update all segments that were assigned to this AI speaker
+    setSelectedSpeakers(prev => {
+      const updated = { ...prev };
+      segments.forEach(segment => {
+        if (segment.suggestedSpeaker === aiSpeaker) {
+          updated[segment.id] = personId;
+        }
+      });
+      return updated;
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="text-center">
@@ -225,6 +249,54 @@ export const SpeakerIdentification = ({
           ))}
         </div>
       </Card>
+
+      {/* AI Speaker Mapping */}
+      {Object.keys(speakerMapping).length > 0 && (
+        <Card className="p-4 bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
+          <h3 className="text-sm font-medium mb-3 text-blue-900 dark:text-blue-100">AI Speaker Mapping</h3>
+          <p className="text-xs text-blue-700 dark:text-blue-300 mb-3">
+            Reassign who each AI-detected speaker actually is:
+          </p>
+          <div className="space-y-3">
+            {Object.entries(speakerMapping).map(([aiSpeaker, currentPersonId]) => {
+              const currentPerson = people.find(p => p.id === currentPersonId);
+              const segmentCount = segments.filter(s => s.suggestedSpeaker === aiSpeaker).length;
+              
+              return (
+                <div key={aiSpeaker} className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg border">
+                  <div className="flex items-center gap-3">
+                    <Badge variant="outline" className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
+                      {aiSpeaker}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">({segmentCount} segments)</span>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">is actually:</span>
+                    <div className="flex gap-1">
+                      {people.map((person) => (
+                        <Button
+                          key={person.id}
+                          variant={currentPersonId === person.id ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => handleSpeakerMappingChange(aiSpeaker, person.id)}
+                          className={`text-xs ${
+                            currentPersonId === person.id 
+                              ? "bg-primary text-primary-foreground" 
+                              : "hover:bg-secondary"
+                          }`}
+                        >
+                          {person.name}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
 
       {/* Speaker Assignment Overview */}
       <Card className="p-4 bg-secondary/30">
