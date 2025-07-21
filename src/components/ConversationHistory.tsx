@@ -179,33 +179,75 @@ export const ConversationHistory = ({ conversations }: ConversationHistoryProps)
                     <Separator />
                     <div className="p-4 space-y-4">
                       <div className="text-sm text-muted-foreground">
-                        {conversation.metadata.segments?.length} segments • {formatTime(conversation.metadata.date)}
+                        {conversation.metadata.summary ? (
+                          <div className="mb-3 p-3 bg-secondary/30 rounded-lg">
+                            <h4 className="font-medium text-foreground mb-1">Summary</h4>
+                            <p className="text-sm">{conversation.metadata.summary}</p>
+                          </div>
+                        ) : null}
+                        
+                        {conversation.metadata.diarized_segments?.length || conversation.metadata.segments?.length || 0} segments • {formatTime(conversation.metadata.date)}
                       </div>
 
                       <div className="space-y-3">
-                        {conversation.metadata.segments?.map((segment: any, index: number) => (
-                          <div key={segment.id} className="flex gap-3">
+                        {/* Display diarized segments if available */}
+                        {conversation.metadata.diarized_segments?.map((segment: any, index: number) => (
+                          <div key={index} className="flex gap-3">
                             <Avatar className="h-8 w-8 flex-shrink-0">
                               <AvatarFallback className="text-xs bg-secondary">
-                                {segment.speakerName.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
+                                {segment.speaker || `S${index + 1}`}
                               </AvatarFallback>
                             </Avatar>
 
                             <div className="flex-1 space-y-1">
                               <div className="flex items-center gap-2">
                                 <span className="text-sm font-medium text-foreground">
-                                  {segment.speakerName}
+                                  {segment.speaker || `Speaker ${index + 1}`}
                                 </span>
                                 <span className="text-xs text-muted-foreground">
-                                  {formatTime(segment.timestamp)}
+                                  {segment.start && segment.end ? `${Math.floor(segment.start)}s - ${Math.floor(segment.end)}s` : ''}
                                 </span>
                               </div>
                               <p className="text-sm text-foreground leading-relaxed">
-                                {segment.content}
+                                {segment.text}
                               </p>
                             </div>
                           </div>
                         ))}
+                        
+                        {/* Fallback to regular segments if diarized not available */}
+                        {!conversation.metadata.diarized_segments && conversation.metadata.segments?.map((segment: any, index: number) => (
+                          <div key={segment.id || index} className="flex gap-3">
+                            <Avatar className="h-8 w-8 flex-shrink-0">
+                              <AvatarFallback className="text-xs bg-secondary">
+                                {segment.speakerName ? segment.speakerName.split(' ').map((n: string) => n[0]).join('').toUpperCase() : `S${index + 1}`}
+                              </AvatarFallback>
+                            </Avatar>
+
+                            <div className="flex-1 space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium text-foreground">
+                                  {segment.speakerName || `Speaker ${index + 1}`}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  {segment.timestamp ? (typeof segment.timestamp === 'string' ? segment.timestamp : formatTime(segment.timestamp)) : ''}
+                                </span>
+                              </div>
+                              <p className="text-sm text-foreground leading-relaxed">
+                                {segment.content || segment.text}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                        
+                        {/* If no segments available, show raw document */}
+                        {!conversation.metadata.diarized_segments && !conversation.metadata.segments && conversation.document && (
+                          <div className="p-3 bg-secondary/30 rounded-lg">
+                            <p className="text-sm text-foreground leading-relaxed">
+                              {conversation.document}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </CollapsibleContent>
