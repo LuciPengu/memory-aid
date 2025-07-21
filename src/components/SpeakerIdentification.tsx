@@ -6,7 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, User, Check } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Plus, User, Check, Edit2, Save, X } from "lucide-react";
 import { Person, ConversationSegment } from "./MemoryApp";
 
 interface SpeakerIdentificationProps {
@@ -25,6 +26,8 @@ export const SpeakerIdentification = ({
   const [selectedSpeakers, setSelectedSpeakers] = useState<{ [key: string]: string }>({});
   const [newPersonName, setNewPersonName] = useState("");
   const [isAddingPerson, setIsAddingPerson] = useState(false);
+  const [editingSegments, setEditingSegments] = useState<{ [key: string]: boolean }>({});
+  const [editedTexts, setEditedTexts] = useState<{ [key: string]: string }>({});
 
   // Check if we have structured speaker data from the transcription
   const segments = (() => {
@@ -88,6 +91,48 @@ export const SpeakerIdentification = ({
     }
   };
 
+  const handleEditText = (segmentId: string) => {
+    const segment = segments.find(s => s.id === segmentId);
+    if (segment) {
+      setEditedTexts(prev => ({
+        ...prev,
+        [segmentId]: editedTexts[segmentId] || segment.content
+      }));
+      setEditingSegments(prev => ({
+        ...prev,
+        [segmentId]: true
+      }));
+    }
+  };
+
+  const handleSaveText = (segmentId: string) => {
+    setEditingSegments(prev => ({
+      ...prev,
+      [segmentId]: false
+    }));
+  };
+
+  const handleCancelEdit = (segmentId: string) => {
+    const segment = segments.find(s => s.id === segmentId);
+    if (segment) {
+      setEditedTexts(prev => ({
+        ...prev,
+        [segmentId]: segment.content
+      }));
+    }
+    setEditingSegments(prev => ({
+      ...prev,
+      [segmentId]: false
+    }));
+  };
+
+  const handleTextChange = (segmentId: string, newText: string) => {
+    setEditedTexts(prev => ({
+      ...prev,
+      [segmentId]: newText
+    }));
+  };
+
   const handleComplete = () => {
     const conversationSegments: ConversationSegment[] = segments.map(segment => {
       const speakerId = selectedSpeakers[segment.id] || people[0].id;
@@ -97,6 +142,7 @@ export const SpeakerIdentification = ({
         ...segment,
         speakerId,
         speakerName: speaker.name,
+        content: editedTexts[segment.id] || segment.content, // Use edited text if available
       };
     });
 
@@ -167,9 +213,36 @@ export const SpeakerIdentification = ({
         </div>
       </Card>
 
+      {/* Speaker Assignment Overview */}
+      <Card className="p-4 bg-secondary/30">
+        <h3 className="text-sm font-medium mb-3">Speaker Assignment Overview</h3>
+        <div className="space-y-2">
+          {Object.entries(
+            segments.reduce((acc, segment) => {
+              const speakerId = selectedSpeakers[segment.id];
+              const speaker = people.find(p => p.id === speakerId);
+              if (speaker) {
+                acc[speaker.name] = (acc[speaker.name] || 0) + 1;
+              }
+              return acc;
+            }, {} as { [key: string]: number })
+          ).map(([speakerName, count]) => (
+            <div key={speakerName} className="flex justify-between items-center">
+              <span className="text-sm text-foreground">{speakerName}</span>
+              <Badge variant="secondary">{count} segments</Badge>
+            </div>
+          ))}
+        </div>
+      </Card>
+
       {/* Conversation Segments */}
       <div className="space-y-4">
-        <h3 className="text-lg font-medium">Conversation Segments</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-medium">Conversation Segments</h3>
+          <p className="text-sm text-muted-foreground">
+            Click speakers to reassign • Hover text to edit
+          </p>
+        </div>
         {segments.map((segment, index) => (
           <Card key={segment.id} className="p-4 bg-card border-border">
             <div className="space-y-3">
@@ -194,9 +267,50 @@ export const SpeakerIdentification = ({
                 )}
               </div>
               
-              <p className="text-foreground leading-relaxed">
-                "{segment.content}"
-              </p>
+              <div className="space-y-2">
+                {editingSegments[segment.id] ? (
+                  <div className="space-y-2">
+                    <Textarea
+                      value={editedTexts[segment.id] || segment.content}
+                      onChange={(e) => handleTextChange(segment.id, e.target.value)}
+                      className="min-h-[80px] resize-none"
+                      placeholder="Edit the transcribed text..."
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => handleSaveText(segment.id)}
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                      >
+                        <Save className="h-3 w-3 mr-1" />
+                        Save
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleCancelEdit(segment.id)}
+                      >
+                        <X className="h-3 w-3 mr-1" />
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-start justify-between group">
+                    <p className="text-foreground leading-relaxed flex-1">
+                      "{editedTexts[segment.id] || segment.content}"
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleEditText(segment.id)}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity ml-2"
+                    >
+                      <Edit2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
+              </div>
               
               <div className="flex flex-wrap gap-2">
                 {people.map((person) => (
