@@ -143,7 +143,7 @@ export const SpeakerIdentification = ({
     }));
   };
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
     const conversationSegments: ConversationSegment[] = segments.map(segment => {
       const speakerId = selectedSpeakers[segment.id] || people[0].id;
       const speaker = people.find(p => p.id === speakerId) || people[0];
@@ -155,6 +155,48 @@ export const SpeakerIdentification = ({
         content: editedTexts[segment.id] || segment.content, // Use edited text if available
       };
     });
+
+    // Send conversation to server
+    try {
+      const conversationData = {
+        title: `Conversation ${new Date().toLocaleDateString()}`,
+        date: new Date().toISOString(),
+        participants: [...new Set(conversationSegments.map(s => s.speakerName))],
+        segments: conversationSegments.map(segment => ({
+          id: segment.id,
+          speakerId: segment.speakerId,
+          speakerName: segment.speakerName,
+          content: segment.content,
+          timestamp: segment.timestamp,
+          startTime: segment.startTime,
+          endTime: segment.endTime
+        }))
+      };
+
+      console.log('Sending conversation to server:', conversationData);
+
+      const response = await fetch(
+        "https://12484f40-7983-4c27-b7d7-4b2f4efa749b-00-zvkwzd4ad4mt.worf.replit.dev/save-conversation",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(conversationData),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to save conversation: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('Conversation saved successfully:', result);
+
+    } catch (error) {
+      console.error('Error saving conversation to server:', error);
+      // Continue with local handling even if server save fails
+    }
 
     onSpeakerIdentified(people[0].id, conversationSegments);
   };
