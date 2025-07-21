@@ -32,9 +32,8 @@ export const SpeakerIdentification = ({
   const [speakerMapping, setSpeakerMapping] = useState<{ [key: string]: string }>({});
   const { currentUser } = useAuth();
 
-  useEffect(() => {
-    // Check if we have structured speaker data from the transcription
-    const segments = (() => {
+  // Check if we have structured speaker data from the transcription
+  const segments = (() => {
     // Try to get speaker segments from the audio blob metadata
     const audioBlob = (window as any).currentAudioBlob;
     if (audioBlob?.speakerSegments && Array.isArray(audioBlob.speakerSegments)) {
