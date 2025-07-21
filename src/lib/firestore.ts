@@ -18,24 +18,14 @@ import { Person, Medication } from "../components/MemoryApp";
 // People operations
 export const addPerson = async (userId: string, person: Omit<Person, 'id'>) => {
   try {
-    console.log("Adding person to Firestore:", { userId, person });
-    
-    const personData = {
+    const docRef = await addDoc(collection(db, "people"), {
       ...person,
       userId,
       createdAt: Timestamp.now()
-    };
-    
-    console.log("Person data to be saved:", personData);
-    
-    const docRef = await addDoc(collection(db, "people"), personData);
-    
-    console.log("Person added successfully with ID:", docRef.id);
-    
+    });
     return docRef.id;
   } catch (error) {
-    console.error("Error adding person to Firestore:", error);
-    console.error("Error details:", error.code, error.message);
+    console.error("Error adding person:", error);
     throw error;
   }
 };
@@ -59,36 +49,19 @@ export const getPeople = async (userId: string): Promise<Person[]> => {
 };
 
 export const subscribeToPeople = (userId: string, callback: (people: Person[]) => void) => {
-  console.log("Setting up people subscription for userId:", userId);
-  
   const q = query(
     collection(db, "people"), 
     where("userId", "==", userId),
     orderBy("createdAt", "desc")
   );
   
-  return onSnapshot(q, 
-    (querySnapshot) => {
-      console.log("People subscription snapshot received, doc count:", querySnapshot.docs.length);
-      
-      const people = querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        console.log("Person document data:", { id: doc.id, ...data });
-        return {
-          id: doc.id,
-          ...data
-        } as Person;
-      });
-      
-      console.log("Processed people array:", people);
-      callback(people);
-    },
-    (error) => {
-      console.error("Error in people subscription:", error);
-      console.error("Error code:", error.code);
-      console.error("Error message:", error.message);
-    }
-  );
+  return onSnapshot(q, (querySnapshot) => {
+    const people = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    } as Person));
+    callback(people);
+  });
 };
 
 // Medications operations

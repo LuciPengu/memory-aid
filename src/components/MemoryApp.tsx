@@ -66,20 +66,11 @@ export const MemoryApp = () => {
   // Subscribe to people changes from Firestore
   useEffect(() => {
     if (currentUser) {
-      console.log("Setting up people subscription for user:", currentUser.uid);
-      
       const unsubscribe = subscribeToPeople(currentUser.uid, (firestorePeople) => {
-        console.log("People subscription update received:", firestorePeople);
-        console.log("Number of people:", firestorePeople.length);
         setPeople(firestorePeople);
       });
 
-      return () => {
-        console.log("Cleaning up people subscription");
-        unsubscribe();
-      };
-    } else {
-      console.log("No current user, not setting up people subscription");
+      return () => unsubscribe();
     }
   }, [currentUser]);
 
@@ -111,18 +102,11 @@ export const MemoryApp = () => {
   };
 
   const addNewPerson = async (name: string) => {
-    if (!currentUser) {
-      console.error("No current user - cannot add person");
-      return null;
-    }
-    
-    console.log("Adding new person:", name, "for user:", currentUser.uid);
+    if (!currentUser) return null;
     
     try {
       const newPersonData = { name };
       const personId = await addPerson(currentUser.uid, newPersonData);
-      
-      console.log("Person added to Firebase with ID:", personId);
       
       const newPerson: Person = {
         id: personId,
