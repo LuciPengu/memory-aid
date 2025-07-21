@@ -8,7 +8,7 @@ import { MedicalOCR } from "./MedicalOCR";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Mic, MessageCircle, History, Users, Pill } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import AuthPage from "./AuthPage";
+import AuthPage from "./Auth/AuthPage";
 import UserProfile from "./UserProfile";
 
 export interface Person {
