@@ -18,14 +18,24 @@ import { Person, Medication } from "../components/MemoryApp";
 // People operations
 export const addPerson = async (userId: string, person: Omit<Person, 'id'>) => {
   try {
-    const docRef = await addDoc(collection(db, "people"), {
+    console.log("Adding person to Firestore:", { userId, person });
+    
+    const personData = {
       ...person,
       userId,
       createdAt: Timestamp.now()
-    });
+    };
+    
+    console.log("Person data to be saved:", personData);
+    
+    const docRef = await addDoc(collection(db, "people"), personData);
+    
+    console.log("Person added successfully with ID:", docRef.id);
+    
     return docRef.id;
   } catch (error) {
-    console.error("Error adding person:", error);
+    console.error("Error adding person to Firestore:", error);
+    console.error("Error details:", error.code, error.message);
     throw error;
   }
 };

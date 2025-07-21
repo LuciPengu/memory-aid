@@ -102,11 +102,18 @@ export const MemoryApp = () => {
   };
 
   const addNewPerson = async (name: string) => {
-    if (!currentUser) return null;
+    if (!currentUser) {
+      console.error("No current user - cannot add person");
+      return null;
+    }
+    
+    console.log("Adding new person:", name, "for user:", currentUser.uid);
     
     try {
       const newPersonData = { name };
       const personId = await addPerson(currentUser.uid, newPersonData);
+      
+      console.log("Person added to Firebase with ID:", personId);
       
       const newPerson: Person = {
         id: personId,

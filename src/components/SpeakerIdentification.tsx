@@ -101,10 +101,17 @@ export const SpeakerIdentification = ({
 
   const handleAddNewPerson = async () => {
     if (newPersonName.trim()) {
-      const newPerson = await onAddNewPerson(newPersonName.trim());
-      if (newPerson) {
-        setNewPersonName("");
-        setIsAddingPerson(false);
+      try {
+        const newPerson = await onAddNewPerson(newPersonName.trim());
+        if (newPerson) {
+          setNewPersonName("");
+          setIsAddingPerson(false);
+          console.log("Successfully added new person:", newPerson);
+        } else {
+          console.error("Failed to add person - no person returned");
+        }
+      } catch (error) {
+        console.error("Error adding new person:", error);
       }
     }
   };
