@@ -45,7 +45,7 @@ export const MedicalOCR = () => {
       ]
     }
   ]);
-  
+
   const [isScanning, setIsScanning] = useState(false);
   const [scannedText, setScannedText] = useState("");
   const [isAddingMed, setIsAddingMed] = useState(false);
@@ -57,7 +57,7 @@ export const MedicalOCR = () => {
     instructions: "",
     reminderTimes: ["09:00"]
   });
-  
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -65,7 +65,7 @@ export const MedicalOCR = () => {
     const file = event.target.files?.[0];
     if (file) {
       setIsScanning(true);
-      
+
       try {
         // Convert file to data URL
         const reader = new FileReader();
@@ -91,64 +91,97 @@ export const MedicalOCR = () => {
         }
 
         const result = await response.json();
-        
+
         if (result.status === "success" && result.medication_info) {
           const medicines = result.medication_info.medicines;
+          const calendarLinks = result.calendar_links || [];
           const startDate = new Date(result.medication_info.start_date);
-          
+
+          // Helper function to parse frequency
+          const parseFrequency = (frequencyText: string): string => {
+            if (frequencyText.includes("Every 4 hours")) return "6x daily";
+            if (frequencyText.includes("Every 6 hours")) return "4x daily";
+            if (frequencyText.includes("Every 8 hours")) return "3x daily";
+            if (frequencyText.includes("Every 12 hours")) return "2x daily";
+            if (frequencyText.includes("Once a day") || frequencyText.includes("Daily")) return "1x daily";
+            return frequencyText; // fallback to original text
+          };
+
+          // Get duration from calendar links (fallback to 7 days)
+          const getDuration = (medicineName: string): number => {
+            const link = calendarLinks.find((link: any) => link.medicine === medicineName);
+            return link?.duration_days || 7;
+          };
+
+          // Get reminder times from calendar links
+          const getReminderTimes = (medicineName: string): string[] => {
+            const link = calendarLinks.find((link: any) => link.medicine === medicineName);
+            return link?.all_dose_times || ["09:00"];
+          };
+
           // Create detailed scanned text from the API response
-          const medicationList = medicines.map((med: any) => 
-            `Medication: ${med.name}\nDosage: ${med.dosage}\nFrequency: ${med.frequency} times daily\nTiming: ${med.timing}\nDuration: ${med.duration_days} days\nInstructions: ${med.special_instructions}`
-          ).join('\n\n');
-          
+          const medicationList = medicines.map((med: any) => {
+            const duration = getDuration(med.name);
+            const frequency = parseFrequency(med.frequency);
+            return `Medication: ${med.name}\nDosage: ${med.dosage}\nFrequency: ${frequency}\nTiming: ${med.timing}\nDuration: ${duration} days\nInstructions: ${med.special_instructions}`;
+          }).join('\n\n');
+
           setScannedText(`Prescription processed successfully:\n\n${medicationList}\n\nStart Date: ${startDate.toLocaleDateString()}\n\nTotal calendar events created: ${result.total_events}`);
-          
+
+          // Convert file to data URL for local storage
+          const reader = new FileReader();
+          const imageDataUrl = await new Promise<string>((resolve, reject) => {
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+
           // Auto-fill with first medication for manual adding if needed
           if (medicines.length > 0) {
             const firstMed = medicines[0];
+            const firstMedFrequency = parseFrequency(firstMed.frequency);
+            const firstMedTimes = getReminderTimes(firstMed.name);
+
             setNewMedication({
               name: firstMed.name,
               dosage: firstMed.dosage,
-              frequency: `${firstMed.frequency} times daily`,
-              instructions: firstMed.special_instructions || firstMed.timing,
-              reminderTimes: ["09:00"]
+              frequency: firstMedFrequency,
+              instructions: `${firstMed.timing}. ${firstMed.special_instructions}`.trim(),
+              reminderTimes: firstMedTimes
             });
             setSelectedDate(startDate);
           }
-          
+
           // Add all medications to the list
           const newMedications = medicines.map((med: any, index: number) => {
+            const reminderTimes = getReminderTimes(med.name);
+            const duration = getDuration(med.name);
+            const frequency = parseFrequency(med.frequency);
+
             const medication: Medication = {
               id: `${Date.now()}-${index}`,
               name: med.name,
               dosage: med.dosage,
-              frequency: `${med.frequency} times daily`,
+              frequency: frequency,
               startDate: startDate,
+              endDate: new Date(startDate.getTime() + (duration * 24 * 60 * 60 * 1000)), // Add duration to start date
               instructions: `${med.timing}. ${med.special_instructions}`.trim(),
               documentImage: imageDataUrl,
-              reminders: [] // Will be populated based on frequency
+              reminders: reminderTimes.map((time: string, timeIndex: number) => ({
+                id: `${Date.now()}-${index}-${timeIndex}`,
+                medicationId: `${Date.now()}-${index}`,
+                time,
+                enabled: true
+              }))
             };
-
-            // Set up reminders based on frequency
-            const times = med.frequency === "1" ? ["20:00"] :
-                         med.frequency === "2" ? ["08:00", "20:00"] :
-                         med.frequency === "3" ? ["08:00", "14:00", "20:00"] :
-                         ["09:00"];
-            
-            medication.reminders = times.map((time: string, timeIndex: number) => ({
-              id: `${medication.id}-${timeIndex}`,
-              medicationId: medication.id,
-              time,
-              enabled: true
-            }));
 
             return medication;
           });
 
           setMedications(prev => [...prev, ...newMedications]);
-          
+
           setIsScanning(false);
-          
+
           toast({
             title: "Prescription processed successfully",
             description: `${medicines.length} medication(s) added with ${result.total_events} calendar reminders`,
@@ -181,7 +214,7 @@ export const MedicalOCR = () => {
       } catch (error) {
         console.error("Error processing prescription:", error);
         setIsScanning(false);
-        
+
         toast({
           title: "Processing failed",
           description: error instanceof Error ? error.message : "Failed to process prescription image",
@@ -199,7 +232,7 @@ export const MedicalOCR = () => {
 
   const addMedication = () => {
     if (!newMedication.name || !selectedDate) return;
-    
+
     const medication: Medication = {
       id: Date.now().toString(),
       name: newMedication.name,
@@ -214,7 +247,7 @@ export const MedicalOCR = () => {
         enabled: true
       }))
     };
-    
+
     setMedications(prev => [...prev, medication]);
     setNewMedication({
       name: "",
@@ -226,7 +259,7 @@ export const MedicalOCR = () => {
     setSelectedDate(undefined);
     setScannedText("");
     setIsAddingMed(false);
-    
+
     toast({
       title: "Medication added",
       description: "Reminders have been set up",
@@ -250,47 +283,77 @@ export const MedicalOCR = () => {
   };
 
   const createCalendarReminders = async (medication: Medication) => {
-    if (!medication.documentImage) return;
-    
+    if (!medication.documentImage) {
+      toast({
+        title: "No document available",
+        description: "This medication doesn't have an associated prescription image",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       toast({
         title: "Creating calendar reminders",
         description: "Generating medication schedule...",
       });
 
-      const response = await fetch('https://12484f40-7983-4c27-b7d7-4b2f4efa749b-00-zvkwzd4ad4mt.worf.replit.dev/medication-calendar', {
+      // Convert data URL back to blob for FormData
+      const response = await fetch(medication.documentImage);
+      const blob = await response.blob();
+
+      const formData = new FormData();
+      formData.append('image', blob, 'medication.jpg');
+
+      const apiResponse = await fetch('https://12484f40-7983-4c27-b7d7-4b2f4efa749b-00-zvkwzd4ad4mt.worf.replit.dev/medication-calendar', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          image_url: medication.documentImage
-        }),
+        body: formData,
       });
 
-      if (!response.ok) {
-        throw new Error(`Failed to create calendar: ${response.status}`);
+      if (!apiResponse.ok) {
+        throw new Error(`Failed to create calendar: ${apiResponse.status}`);
       }
 
-      const result = await response.json();
-      
+      const result = await apiResponse.json();
+
       if (result.status === "success" && result.calendar_links?.length > 0) {
-        toast({
-          title: "Calendar reminders ready",
-          description: `${result.total_events} reminders created`,
-          action: {
-            label: "Open Calendar",
-            onClick: () => {
-              result.calendar_links.forEach((link: any) => {
-                window.open(link.calendar_url, '_blank');
-              });
+        // Filter calendar links for this specific medication
+        const medicationLinks = result.calendar_links.filter((link: any) => 
+          link.medicine.toLowerCase() === medication.name.toLowerCase()
+        );
+
+        if (medicationLinks.length > 0) {
+          toast({
+            title: "Calendar reminders ready",
+            description: `${medicationLinks.length} reminders created for ${medication.name}`,
+            action: {
+              label: "Open Calendar",
+              onClick: () => {
+                medicationLinks.forEach((link: any) => {
+                  window.open(link.calendar_url, '_blank');
+                });
+              }
             }
-          }
-        });
+          });
+        } else {
+          toast({
+            title: "All calendar reminders ready",
+            description: `${result.total_events} total reminders created`,
+            action: {
+              label: "Open All Calendars",
+              onClick: () => {
+                result.calendar_links.forEach((link: any) => {
+                  window.open(link.calendar_url, '_blank');
+                });
+              }
+            }
+          });
+        }
       } else {
         throw new Error("No calendar links generated");
       }
     } catch (error) {
+      console.error("Calendar creation error:", error);
       toast({
         title: "Calendar creation failed",
         description: error instanceof Error ? error.message : "Failed to create calendar reminders",
@@ -312,7 +375,7 @@ export const MedicalOCR = () => {
       <Card className="p-6 bg-gradient-secondary border-0">
         <div className="space-y-4">
           <h3 className="text-lg font-medium text-center">Scan Prescription</h3>
-          
+
           <div className="flex gap-3 justify-center">
             <Button 
               onClick={handleCameraCapture}
@@ -331,7 +394,7 @@ export const MedicalOCR = () => {
               Upload Image
             </Button>
           </div>
-          
+
           <input
             ref={fileInputRef}
             type="file"
@@ -340,14 +403,14 @@ export const MedicalOCR = () => {
             onChange={handleImageUpload}
             className="hidden"
           />
-          
+
           {isScanning && (
             <div className="text-center py-8">
               <div className="animate-spin h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
               <p className="text-muted-foreground">Processing document...</p>
             </div>
           )}
-          
+
           {scannedText && (
             <div className="bg-secondary/50 p-4 rounded-lg">
               <Label className="text-sm font-medium mb-2 block">Extracted Text:</Label>
@@ -385,7 +448,7 @@ export const MedicalOCR = () => {
                   placeholder="e.g., Lisinopril"
                 />
               </div>
-              
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label htmlFor="dosage">Dosage</Label>
@@ -414,7 +477,7 @@ export const MedicalOCR = () => {
                   </Select>
                 </div>
               </div>
-              
+
               <div>
                 <Label>Start Date</Label>
                 <div className="mt-2">
@@ -426,7 +489,7 @@ export const MedicalOCR = () => {
                   />
                 </div>
               </div>
-              
+
               <div>
                 <Label htmlFor="instructions">Instructions</Label>
                 <Textarea
@@ -437,7 +500,7 @@ export const MedicalOCR = () => {
                   className="min-h-20"
                 />
               </div>
-              
+
               <div className="flex gap-2">
                 <Button 
                   onClick={addMedication} 
@@ -482,13 +545,13 @@ export const MedicalOCR = () => {
                   Active
                 </Badge>
               </div>
-              
+
               {medication.instructions && (
                 <p className="text-sm text-muted-foreground bg-secondary/30 p-2 rounded">
                   {medication.instructions}
                 </p>
               )}
-              
+
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Reminders:</Label>
                 <div className="flex flex-wrap gap-2">
@@ -520,7 +583,7 @@ export const MedicalOCR = () => {
             </div>
           </Card>
         ))}
-        
+
         {medications.length === 0 && (
           <Card className="p-8 text-center bg-secondary/30">
             <Pill className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
