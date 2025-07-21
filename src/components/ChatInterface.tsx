@@ -14,6 +14,14 @@ interface ChatMessage {
   isUser: boolean;
   timestamp: Date;
   relatedConversations?: string[];
+  sources?: Array<{
+    id: string;
+    title: string;
+    type: string;
+    relevance_score: number;
+    metadata?: any;
+  }>;
+  retrievedDocuments?: number;
 }
 
 interface ChatInterfaceProps {
@@ -41,49 +49,45 @@ export const ChatInterface = ({ conversations }: ChatInterfaceProps) => {
     scrollToBottom();
   }, [messages]);
 
-  const searchConversations = (query: string): string[] => {
-    const searchTerms = query.toLowerCase().split(' ');
-    const relevantConversations: string[] = [];
+  const queryRAG = async (query: string) => {
+    try {
+      const response = await fetch(
+        "https://12484f40-7983-4c27-b7d7-4b2f4efa749b-00-zvkwzd4ad4mt.worf.replit.dev/rag-query",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            query: query,
+            max_results: 5
+          }),
+        }
+      );
 
-    conversations.forEach(conversation => {
-      const content = [
-        conversation.title,
-        ...conversation.segments.map(s => s.content),
-        ...conversation.participants
-      ].join(' ').toLowerCase();
-
-      const hasMatch = searchTerms.some(term => content.includes(term));
-      if (hasMatch) {
-        relevantConversations.push(conversation.id);
+      if (!response.ok) {
+        throw new Error(`RAG query failed: ${response.status}`);
       }
-    });
 
-    return relevantConversations;
-  };
-
-  const generateResponse = (query: string, relatedConversationIds: string[]) => {
-    const relatedConversations = conversations.filter(c => 
-      relatedConversationIds.includes(c.id)
-    );
-
-    if (relatedConversations.length === 0) {
-      return "I couldn't find any conversations related to your query. Try asking about different topics or check your conversation history.";
+      const result = await response.json();
+      
+      if (result.status === "success") {
+        return {
+          answer: result.answer,
+          sources: result.sources || [],
+          retrievedDocuments: result.retrieved_documents || 0
+        };
+      } else {
+        throw new Error("RAG query returned error status");
+      }
+    } catch (error) {
+      console.error("Error querying RAG:", error);
+      return {
+        answer: "I'm sorry, I'm having trouble accessing your conversation memories right now. Please try again later.",
+        sources: [],
+        retrievedDocuments: 0
+      };
     }
-
-    // Mock RAG response based on conversations
-    const segments = relatedConversations.flatMap(c => c.segments);
-    const participants = [...new Set(relatedConversations.flatMap(c => c.participants))];
-    
-    if (query.toLowerCase().includes('meeting') || query.toLowerCase().includes('discuss')) {
-      return `Based on your conversations, I found ${relatedConversations.length} relevant meeting(s). Key participants included ${participants.slice(0, 3).join(', ')}. Main topics discussed were project planning, authentication systems, and database migration strategies.`;
-    }
-    
-    if (query.toLowerCase().includes('who said') || query.toLowerCase().includes('what did')) {
-      const randomSegment = segments[Math.floor(Math.random() * segments.length)];
-      return `I found this relevant quote from ${randomSegment.speakerName}: "${randomSegment.content}"`;
-    }
-
-    return `I found ${relatedConversations.length} conversation(s) that might be relevant to your query. They involved discussions with ${participants.join(', ')} about various topics including project planning and technical decisions.`;
   };
 
   const handleSendMessage = async () => {
@@ -96,26 +100,37 @@ export const ChatInterface = ({ conversations }: ChatInterfaceProps) => {
       timestamp: new Date(),
     };
 
+    const currentQuery = inputValue;
     setMessages(prev => [...prev, userMessage]);
     setInputValue("");
     setIsTyping(true);
 
-    // Simulate processing time
-    setTimeout(() => {
-      const relatedConversationIds = searchConversations(inputValue);
-      const response = generateResponse(inputValue, relatedConversationIds);
-
+    try {
+      const ragResult = await queryRAG(currentQuery);
+      
       const botMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
-        content: response,
+        content: ragResult.answer,
         isUser: false,
         timestamp: new Date(),
-        relatedConversations: relatedConversationIds,
+        relatedConversations: ragResult.sources.map(s => s.id),
+        sources: ragResult.sources,
+        retrievedDocuments: ragResult.retrievedDocuments
       };
 
       setMessages(prev => [...prev, botMessage]);
+    } catch (error) {
+      console.error("Error processing message:", error);
+      const errorMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        content: "I'm sorry, I encountered an error while processing your request. Please try again.",
+        isUser: false,
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
       setIsTyping(false);
-    }, 1000 + Math.random() * 1000);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -159,7 +174,35 @@ export const ChatInterface = ({ conversations }: ChatInterfaceProps) => {
                   <p className="text-sm leading-relaxed">{message.content}</p>
                 </div>
                 
-                {message.relatedConversations && message.relatedConversations.length > 0 && (
+                {message.sources && message.sources.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    <div className="flex items-center gap-1">
+                      <Sparkles className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground">
+                        Sources ({message.retrievedDocuments || message.sources.length} documents)
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {message.sources.slice(0, 3).map((source, index) => (
+                        <Badge 
+                          key={index} 
+                          variant="outline" 
+                          className="text-xs px-1 py-0.5"
+                          title={`Relevance: ${(source.relevance_score * 100).toFixed(1)}%`}
+                        >
+                          {source.title}
+                        </Badge>
+                      ))}
+                      {message.sources.length > 3 && (
+                        <Badge variant="outline" className="text-xs px-1 py-0.5">
+                          +{message.sources.length - 3} more
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                {message.relatedConversations && message.relatedConversations.length > 0 && !message.sources && (
                   <div className="mt-2 flex flex-wrap gap-1">
                     <Sparkles className="h-3 w-3 text-muted-foreground mt-1" />
                     <span className="text-xs text-muted-foreground">
@@ -223,9 +266,10 @@ export const ChatInterface = ({ conversations }: ChatInterfaceProps) => {
         <Label className="text-sm font-medium">Try asking:</Label>
         <div className="flex flex-wrap gap-2">
           {[
-            "What did we discuss in the last meeting?",
-            "Who mentioned authentication?",
-            "Show me conversations about planning",
+            "What did we discuss about quarterly goals?",
+            "Who mentioned authentication systems?",
+            "Show me conversations about project planning",
+            "What decisions were made about the database?",
           ].map((suggestion, index) => (
             <Badge
               key={index}
