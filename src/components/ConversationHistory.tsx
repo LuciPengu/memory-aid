@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -16,13 +16,38 @@ interface ConversationHistoryProps {
 export const ConversationHistory = ({ conversations }: ConversationHistoryProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedConversations, setExpandedConversations] = useState<Set<string>>(new Set());
+  const [allVectors, setAllVectors] = useState<any[]>([]);
 
-  const filteredConversations = conversations.filter(conversation => {
+  useEffect(() => {
+    const fetchAllVectors = async () => {
+      try {
+        const response = await fetch('/list-all-vectors');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.status === "success") {
+            setAllVectors(data.vectors);
+          } else {
+            console.error("Failed to fetch vectors:", data);
+          }
+        } else {
+          console.error("Failed to fetch vectors:", response.status);
+        }
+      } catch (error) {
+        console.error("Error fetching vectors:", error);
+      }
+    };
+
+    fetchAllVectors();
+  }, []);
+
+  const filteredConversations = allVectors.filter(conversation => {
+    if (!conversation || !conversation.metadata) return false;
+
     const searchTerm = searchQuery.toLowerCase();
     return (
-      conversation.title.toLowerCase().includes(searchTerm) ||
-      conversation.participants.some(p => p.toLowerCase().includes(searchTerm)) ||
-      conversation.segments.some(s => s.content.toLowerCase().includes(searchTerm))
+      conversation.metadata.title.toLowerCase().includes(searchTerm) ||
+      conversation.metadata.participants?.some((p: string) => p.toLowerCase().includes(searchTerm)) ||
+      conversation.document.toLowerCase().includes(searchTerm)
     );
   });
 
@@ -38,19 +63,21 @@ export const ConversationHistory = ({ conversations }: ConversationHistoryProps)
     });
   };
 
-  const formatDate = (date: Date) => {
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
     const now = new Date();
     const diffTime = Math.abs(now.getTime() - date.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays === 1) return "Today";
     if (diffDays === 2) return "Yesterday";
     if (diffDays <= 7) return `${diffDays - 1} days ago`;
-    
+
     return date.toLocaleDateString();
   };
 
-  const formatTime = (date: Date) => {
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
@@ -84,7 +111,7 @@ export const ConversationHistory = ({ conversations }: ConversationHistoryProps)
                 {searchQuery ? "No conversations found" : "No conversations yet"}
               </h3>
               <p className="text-muted-foreground">
-                {searchQuery 
+                {searchQuery
                   ? "Try different search terms or check your spelling"
                   : "Start recording conversations to see them here"
                 }
@@ -93,8 +120,10 @@ export const ConversationHistory = ({ conversations }: ConversationHistoryProps)
           </Card>
         ) : (
           filteredConversations.map((conversation) => {
+            if (!conversation || !conversation.metadata) return null;
+
             const isExpanded = expandedConversations.has(conversation.id);
-            
+
             return (
               <Card key={conversation.id} className="bg-card border-border overflow-hidden">
                 <Collapsible open={isExpanded} onOpenChange={() => toggleExpanded(conversation.id)}>
@@ -108,56 +137,56 @@ export const ConversationHistory = ({ conversations }: ConversationHistoryProps)
                             <ChevronRight className="h-4 w-4 text-muted-foreground" />
                           )}
                         </div>
-                        
+
                         <div className="flex-1 text-left space-y-2">
                           <div className="flex items-center justify-between">
-                            <h3 className="font-medium text-foreground">{conversation.title}</h3>
+                            <h3 className="font-medium text-foreground">{conversation.metadata.title}</h3>
                             <div className="flex items-center gap-1 text-sm text-muted-foreground">
                               <Clock className="h-3 w-3" />
-                              {formatDate(conversation.date)}
+                              {formatDate(conversation.metadata.date)}
                             </div>
                           </div>
-                          
+
                           <div className="flex items-center gap-2">
                             <Users className="h-3 w-3 text-muted-foreground" />
                             <div className="flex items-center gap-1">
-                              {conversation.participants.slice(0, 3).map((participant, index) => (
+                              {conversation.metadata.participants?.slice(0, 3).map((participant: string, index: number) => (
                                 <Badge key={index} variant="secondary" className="text-xs">
                                   {participant}
                                 </Badge>
                               ))}
-                              {conversation.participants.length > 3 && (
+                              {conversation.metadata.participants?.length > 3 && (
                                 <Badge variant="secondary" className="text-xs">
-                                  +{conversation.participants.length - 3}
+                                  +{conversation.metadata.participants.length - 3}
                                 </Badge>
                               )}
                             </div>
                           </div>
-                          
+
                           <p className="text-sm text-muted-foreground line-clamp-2">
-                            {conversation.segments[0]?.content.substring(0, 100)}...
+                            {conversation.document?.substring(0, 100)}...
                           </p>
                         </div>
                       </div>
                     </Button>
                   </CollapsibleTrigger>
-                  
+
                   <CollapsibleContent>
                     <Separator />
                     <div className="p-4 space-y-4">
                       <div className="text-sm text-muted-foreground">
-                        {conversation.segments.length} segments • {formatTime(conversation.date)}
+                        {conversation.metadata.segments?.length} segments • {formatTime(conversation.metadata.date)}
                       </div>
-                      
+
                       <div className="space-y-3">
-                        {conversation.segments.map((segment, index) => (
+                        {conversation.metadata.segments?.map((segment: any, index: number) => (
                           <div key={segment.id} className="flex gap-3">
                             <Avatar className="h-8 w-8 flex-shrink-0">
                               <AvatarFallback className="text-xs bg-secondary">
-                                {segment.speakerName.split(' ').map(n => n[0]).join('').toUpperCase()}
+                                {segment.speakerName.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
                               </AvatarFallback>
                             </Avatar>
-                            
+
                             <div className="flex-1 space-y-1">
                               <div className="flex items-center gap-2">
                                 <span className="text-sm font-medium text-foreground">
@@ -182,12 +211,10 @@ export const ConversationHistory = ({ conversations }: ConversationHistoryProps)
           })
         )}
       </div>
-
-      {/* Summary */}
       {filteredConversations.length > 0 && (
         <Card className="p-4 bg-secondary/30">
           <div className="text-center text-sm text-muted-foreground">
-            Showing {filteredConversations.length} of {conversations.length} conversations
+            Showing {filteredConversations.length} of {allVectors.length} conversations
           </div>
         </Card>
       )}
