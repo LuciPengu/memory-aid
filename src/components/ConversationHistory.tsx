@@ -45,7 +45,7 @@ export const ConversationHistory = ({ conversations }: ConversationHistoryProps)
 
     const searchTerm = searchQuery.toLowerCase();
     const title = conversation.metadata.title || '';
-    const participants = conversation.metadata.participants || [];
+    const participants = Array.isArray(conversation.metadata.participants) ? conversation.metadata.participants : [];
     const document = conversation.document || '';
     
     return (
@@ -154,12 +154,12 @@ export const ConversationHistory = ({ conversations }: ConversationHistoryProps)
                           <div className="flex items-center gap-2">
                             <Users className="h-3 w-3 text-muted-foreground" />
                             <div className="flex items-center gap-1">
-                              {conversation.metadata.participants?.slice(0, 3).map((participant: string, index: number) => (
+                              {Array.isArray(conversation.metadata.participants) && conversation.metadata.participants.slice(0, 3).map((participant: string, index: number) => (
                                 <Badge key={index} variant="secondary" className="text-xs">
                                   {participant}
                                 </Badge>
                               ))}
-                              {conversation.metadata.participants?.length > 3 && (
+                              {Array.isArray(conversation.metadata.participants) && conversation.metadata.participants.length > 3 && (
                                 <Badge variant="secondary" className="text-xs">
                                   +{conversation.metadata.participants.length - 3}
                                 </Badge>
