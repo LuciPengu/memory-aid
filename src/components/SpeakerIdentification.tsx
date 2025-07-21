@@ -56,6 +56,9 @@ export const SpeakerIdentification = ({
 
   // Auto-assign speakers based on AI suggestions when component mounts
   useEffect(() => {
+    // Only auto-assign if there are no existing assignments
+    if (Object.keys(selectedSpeakers).length > 0) return;
+
     const autoAssignments: { [key: string]: string } = {};
     const initialSpeakerMapping: { [key: string]: string } = {};
 
@@ -80,7 +83,7 @@ export const SpeakerIdentification = ({
     });
 
     setSelectedSpeakers(autoAssignments);
-  }, [segments, people]);
+  }, [segments.length]); // Only depend on segments length, not the full segments array or people
 
   const handleSpeakerSelect = (segmentId: string, speakerId: string) => {
     console.log(`Assigning segment ${segmentId} to speaker ${speakerId}`);
