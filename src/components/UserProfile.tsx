@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { LogOut, User } from 'lucide-react';
 
-export const UserProfile = () => {
+const UserProfile = () => {
   const { currentUser, logout } = useAuth();
   const { toast } = useToast();
 
@@ -52,3 +52,5 @@ export const UserProfile = () => {
     </Card>
   );
 };
+
+export default UserProfile;
