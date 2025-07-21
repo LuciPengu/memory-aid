@@ -117,9 +117,20 @@ export const MedicalOCR = () => {
 
           // Get reminder times from calendar links
           const getReminderTimes = (medicineName: string): string[] => {
-            if (!Array.isArray(calendarLinks) || calendarLinks.length === 0) return ["09:00"];
-            const link = calendarLinks.find((link: any) => link && link.medicine === medicineName);
-            return Array.isArray(link?.all_dose_times) ? link.all_dose_times : ["09:00"];
+            try {
+              if (!Array.isArray(calendarLinks) || calendarLinks.length === 0) return ["09:00"];
+              const link = calendarLinks.find((link: any) => 
+                link && 
+                typeof link.medicine === 'string' && 
+                link.medicine.toLowerCase() === medicineName.toLowerCase()
+              );
+              return Array.isArray(link?.all_dose_times) && link.all_dose_times.length > 0 
+                ? link.all_dose_times.filter((time: any) => typeof time === 'string')
+                : ["09:00"];
+            } catch (error) {
+              console.error("Error getting reminder times:", error);
+              return ["09:00"];
+            }
           };
 
           // Create detailed scanned text from the API response
@@ -132,62 +143,70 @@ export const MedicalOCR = () => {
 
           setScannedText(`Prescription processed successfully:\n\n${medicationList}\n\nStart Date: ${startDate.toLocaleDateString()}\n\nTotal calendar events created: ${result.total_events}`);
 
-          // Convert file to data URL for local storage
-          const reader = new FileReader();
-          const imageDataUrl = await new Promise<string>((resolve, reject) => {
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          });
-
           // Auto-fill with first medication for manual adding if needed
-          if (medicines.length > 0) {
+          if (Array.isArray(medicines) && medicines.length > 0) {
             const firstMed = medicines[0];
-            const firstMedFrequency = parseFrequency(firstMed.frequency);
-            const firstMedTimes = getReminderTimes(firstMed.name);
+            if (firstMed && firstMed.name) {
+              const firstMedFrequency = parseFrequency(firstMed.frequency || "");
+              const firstMedTimes = getReminderTimes(firstMed.name);
 
-            setNewMedication({
-              name: firstMed.name,
-              dosage: firstMed.dosage,
-              frequency: firstMedFrequency,
-              instructions: `${firstMed.timing}. ${firstMed.special_instructions}`.trim(),
-              reminderTimes: firstMedTimes
-            });
-            setSelectedDate(startDate);
+              setNewMedication({
+                name: firstMed.name || "",
+                dosage: firstMed.dosage || "",
+                frequency: firstMedFrequency,
+                instructions: `${firstMed.timing || ""}. ${firstMed.special_instructions || ""}`.trim(),
+                reminderTimes: Array.isArray(firstMedTimes) ? firstMedTimes : ["09:00"]
+              });
+              setSelectedDate(startDate);
+            }
           }
 
           // Add all medications to the list
-          const newMedications = Array.isArray(medicines) ? medicines.filter((med: any) => med && med.name).map((med: any, index: number) => {
-            const reminderTimes = getReminderTimes(med.name);
-            const duration = getDuration(med.name);
-            const frequency = parseFrequency(med.frequency);
+          const newMedications: Medication[] = [];
+          
+          if (Array.isArray(medicines)) {
+            medicines.forEach((med: any, index: number) => {
+              if (med && med.name && typeof med.name === 'string') {
+                try {
+                  const reminderTimes = getReminderTimes(med.name);
+                  const duration = getDuration(med.name);
+                  const frequency = parseFrequency(med.frequency || "");
+                  
+                  const medicationId = `${Date.now()}-${index}`;
 
-            const medication: Medication = {
-              id: `${Date.now()}-${index}`,
-              name: med.name,
-              dosage: med.dosage || "Not specified",
-              frequency: frequency,
-              startDate: startDate,
-              endDate: new Date(startDate.getTime() + (duration * 24 * 60 * 60 * 1000)), // Add duration to start date
-              instructions: `${med.timing || "As prescribed"}. ${med.special_instructions || ""}`.trim(),
-              documentImage: imageDataUrl,
-              reminders: Array.isArray(reminderTimes) ? reminderTimes.map((time: string, timeIndex: number) => ({
-                id: `${Date.now()}-${index}-${timeIndex}`,
-                medicationId: `${Date.now()}-${index}`,
-                time: time || "09:00",
-                enabled: true
-              })) : [{
-                id: `${Date.now()}-${index}-0`,
-                medicationId: `${Date.now()}-${index}`,
-                time: "09:00",
-                enabled: true
-              }]
-            };
+                  const medication: Medication = {
+                    id: medicationId,
+                    name: med.name,
+                    dosage: med.dosage || "Not specified",
+                    frequency: frequency,
+                    startDate: startDate,
+                    endDate: new Date(startDate.getTime() + (duration * 24 * 60 * 60 * 1000)),
+                    instructions: `${med.timing || "As prescribed"}. ${med.special_instructions || ""}`.trim(),
+                    documentImage: imageDataUrl,
+                    reminders: Array.isArray(reminderTimes) ? reminderTimes.map((time: string, timeIndex: number) => ({
+                      id: `${medicationId}-${timeIndex}`,
+                      medicationId: medicationId,
+                      time: (time && typeof time === 'string') ? time : "09:00",
+                      enabled: true
+                    })) : [{
+                      id: `${medicationId}-0`,
+                      medicationId: medicationId,
+                      time: "09:00",
+                      enabled: true
+                    }]
+                  };
 
-            return medication;
-          }) : [];
+                  newMedications.push(medication);
+                } catch (medError) {
+                  console.error(`Error processing medication ${index}:`, medError);
+                }
+              }
+            });
+          }
 
-          setMedications(prev => [...prev, ...newMedications]);
+          if (newMedications.length > 0) {
+            setMedications(prev => [...prev, ...newMedications]);
+          }
 
           setIsScanning(false);
 
@@ -223,6 +242,7 @@ export const MedicalOCR = () => {
       } catch (error) {
         console.error("Error processing prescription:", error);
         setIsScanning(false);
+        setScannedText("");
 
         toast({
           title: "Processing failed",
@@ -534,64 +554,72 @@ export const MedicalOCR = () => {
       {/* Current Medications */}
       <div className="space-y-4">
         <h3 className="text-lg font-medium">Your Medications</h3>
-        {medications.map((medication) => (
-          <Card key={medication.id} className="p-4 bg-card border-border">
-            <div className="space-y-3">
-              <div className="flex items-start justify-between">
-                <div className="space-y-1">
-                  <h4 className="font-medium text-foreground flex items-center gap-2">
-                    <Pill className="h-4 w-4 text-primary" />
-                    {medication.name}
-                  </h4>
-                  <p className="text-sm text-muted-foreground">
-                    {medication.dosage} • {medication.frequency}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Started: {format(medication.startDate, "MMM dd, yyyy")}
-                  </p>
+        {Array.isArray(medications) && medications.map((medication) => {
+          if (!medication || !medication.id || !medication.name) return null;
+          
+          return (
+            <Card key={medication.id} className="p-4 bg-card border-border">
+              <div className="space-y-3">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1">
+                    <h4 className="font-medium text-foreground flex items-center gap-2">
+                      <Pill className="h-4 w-4 text-primary" />
+                      {medication.name}
+                    </h4>
+                    <p className="text-sm text-muted-foreground">
+                      {medication.dosage || "No dosage"} • {medication.frequency || "As needed"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Started: {medication.startDate ? format(medication.startDate, "MMM dd, yyyy") : "Unknown"}
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
+                    Active
+                  </Badge>
                 </div>
-                <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
-                  Active
-                </Badge>
-              </div>
 
-              {medication.instructions && (
-                <p className="text-sm text-muted-foreground bg-secondary/30 p-2 rounded">
-                  {medication.instructions}
-                </p>
-              )}
-
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Reminders:</Label>
-                <div className="flex flex-wrap gap-2">
-                  {medication.reminders.map((reminder) => (
-                    <Button
-                      key={reminder.id}
-                      variant={reminder.enabled ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => toggleReminder(medication.id, reminder.id)}
-                      className={reminder.enabled ? "bg-primary text-primary-foreground" : ""}
-                    >
-                      <Bell className="mr-1 h-3 w-3" />
-                      {reminder.time}
-                    </Button>
-                  ))}
-                </div>
-                {medication.documentImage && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => createCalendarReminders(medication)}
-                    className="mt-2"
-                  >
-                    <CalendarIcon className="mr-1 h-3 w-3" />
-                    Add to Calendar
-                  </Button>
+                {medication.instructions && (
+                  <p className="text-sm text-muted-foreground bg-secondary/30 p-2 rounded">
+                    {medication.instructions}
+                  </p>
                 )}
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Reminders:</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {Array.isArray(medication.reminders) && medication.reminders.map((reminder) => {
+                      if (!reminder || !reminder.id) return null;
+                      
+                      return (
+                        <Button
+                          key={reminder.id}
+                          variant={reminder.enabled ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => toggleReminder(medication.id, reminder.id)}
+                          className={reminder.enabled ? "bg-primary text-primary-foreground" : ""}
+                        >
+                          <Bell className="mr-1 h-3 w-3" />
+                          {reminder.time || "09:00"}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                  {medication.documentImage && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => createCalendarReminders(medication)}
+                      className="mt-2"
+                    >
+                      <CalendarIcon className="mr-1 h-3 w-3" />
+                      Add to Calendar
+                    </Button>
+                  )}
+                </div>
               </div>
-            </div>
-          </Card>
-        ))}
+            </Card>
+          );
+        })}
 
         {medications.length === 0 && (
           <Card className="p-8 text-center bg-secondary/30">
