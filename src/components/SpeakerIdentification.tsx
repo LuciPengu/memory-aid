@@ -101,18 +101,29 @@ export const SpeakerIdentification = ({
 
   const handleAddNewPerson = async () => {
     if (newPersonName.trim()) {
+      console.log("Starting to add new person:", newPersonName.trim());
+      console.log("Current user:", currentUser?.uid);
+      console.log("Current people list:", people);
+      
       try {
         const newPerson = await onAddNewPerson(newPersonName.trim());
+        console.log("onAddNewPerson returned:", newPerson);
+        
         if (newPerson) {
           setNewPersonName("");
           setIsAddingPerson(false);
           console.log("Successfully added new person:", newPerson);
+          console.log("Updated people list should refresh automatically via Firestore subscription");
         } else {
           console.error("Failed to add person - no person returned");
+          alert("Failed to add person. Please try again.");
         }
       } catch (error) {
         console.error("Error adding new person:", error);
+        alert(`Error adding person: ${error.message}`);
       }
+    } else {
+      console.log("Person name is empty, not adding");
     }
   };
 

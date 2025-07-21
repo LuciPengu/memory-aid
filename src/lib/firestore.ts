@@ -59,19 +59,36 @@ export const getPeople = async (userId: string): Promise<Person[]> => {
 };
 
 export const subscribeToPeople = (userId: string, callback: (people: Person[]) => void) => {
+  console.log("Setting up people subscription for userId:", userId);
+  
   const q = query(
     collection(db, "people"), 
     where("userId", "==", userId),
     orderBy("createdAt", "desc")
   );
   
-  return onSnapshot(q, (querySnapshot) => {
-    const people = querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    } as Person));
-    callback(people);
-  });
+  return onSnapshot(q, 
+    (querySnapshot) => {
+      console.log("People subscription snapshot received, doc count:", querySnapshot.docs.length);
+      
+      const people = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        console.log("Person document data:", { id: doc.id, ...data });
+        return {
+          id: doc.id,
+          ...data
+        } as Person;
+      });
+      
+      console.log("Processed people array:", people);
+      callback(people);
+    },
+    (error) => {
+      console.error("Error in people subscription:", error);
+      console.error("Error code:", error.code);
+      console.error("Error message:", error.message);
+    }
+  );
 };
 
 // Medications operations

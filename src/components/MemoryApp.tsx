@@ -66,11 +66,20 @@ export const MemoryApp = () => {
   // Subscribe to people changes from Firestore
   useEffect(() => {
     if (currentUser) {
+      console.log("Setting up people subscription for user:", currentUser.uid);
+      
       const unsubscribe = subscribeToPeople(currentUser.uid, (firestorePeople) => {
+        console.log("People subscription update received:", firestorePeople);
+        console.log("Number of people:", firestorePeople.length);
         setPeople(firestorePeople);
       });
 
-      return () => unsubscribe();
+      return () => {
+        console.log("Cleaning up people subscription");
+        unsubscribe();
+      };
+    } else {
+      console.log("No current user, not setting up people subscription");
     }
   }, [currentUser]);
 
