@@ -103,30 +103,60 @@ export const SpeakerIdentification = ({
   };
 
   const handleAddNewPerson = async () => {
-    if (newPersonName.trim() && currentUser) {
-      try {
-        console.log("Adding new person:", newPersonName.trim());
-        const newPerson = await addPerson(currentUser.uid, newPersonName.trim());
+    if (!newPersonName.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a person's name",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!currentUser) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to add a person",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      console.log("Adding new person:", newPersonName.trim());
+      console.log("Current user UID:", currentUser.uid);
+      
+      const newPerson = await addPerson(currentUser.uid, newPersonName.trim());
+      
+      if (newPerson) {
+        console.log("Person added successfully:", newPerson);
         
-        if (newPerson) {
-          console.log("Person added successfully:", newPerson);
-          onAddNewPerson(newPersonName.trim());
-          setNewPersonName("");
-          setIsAddingPerson(false);
-          
-          toast({
-            title: "Person added",
-            description: `${newPersonName.trim()} has been added to your contacts`,
-          });
-        }
-      } catch (error) {
-        console.error("Error adding person:", error);
+        // Call the parent component's add function
+        onAddNewPerson(newPersonName.trim());
+        
+        // Reset form
+        setNewPersonName("");
+        setIsAddingPerson(false);
+        
         toast({
-          title: "Error",
-          description: "Failed to add person. Please try again.",
-          variant: "destructive",
+          title: "Person added",
+          description: `${newPersonName.trim()} has been added to your contacts`,
         });
+      } else {
+        throw new Error("Failed to create person document");
       }
+    } catch (error: any) {
+      console.error("Error adding person:", error);
+      console.error("Error details:", {
+        code: error?.code,
+        message: error?.message,
+        userId: currentUser?.uid
+      });
+      
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to add person. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 

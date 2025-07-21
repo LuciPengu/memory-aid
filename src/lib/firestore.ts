@@ -37,8 +37,16 @@ export interface Medication {
 
 // People operations
 export const addPerson = async (userId: string, name: string): Promise<Person | null> => {
+  if (!userId) {
+    throw new Error("User ID is required");
+  }
+  
+  if (!name?.trim()) {
+    throw new Error("Person name is required");
+  }
+
   try {
-    console.log("Adding person to Firestore:", { userId, name });
+    console.log("Adding person to Firestore:", { userId, name: name.trim() });
     
     const personData = {
       name: name.trim(),
@@ -61,14 +69,24 @@ export const addPerson = async (userId: string, name: string): Promise<Person | 
     
     console.log("Returning new person:", newPerson);
     return newPerson;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error adding person: ", error);
     console.error("Error details:", {
-      code: error.code,
-      message: error.message,
-      stack: error.stack
+      code: error?.code,
+      message: error?.message,
+      stack: error?.stack,
+      userId,
+      name: name?.trim()
     });
-    throw error;
+    
+    // Re-throw with more specific error message
+    if (error?.code === 'permission-denied') {
+      throw new Error("Permission denied. Please check your Firebase security rules.");
+    } else if (error?.code === 'unavailable') {
+      throw new Error("Firestore is currently unavailable. Please try again later.");
+    } else {
+      throw new Error(error?.message || "Failed to add person to database");
+    }
   }
 };
 
