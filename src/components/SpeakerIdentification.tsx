@@ -44,7 +44,7 @@ export const SpeakerIdentification = ({
         duration: segment.end - segment.start
       }));
     }
-    
+
     // Fallback to simple sentence splitting
     return transcript.split('.').filter(s => s.trim()).map((segment, index) => ({
       id: index.toString(),
@@ -57,7 +57,7 @@ export const SpeakerIdentification = ({
   useEffect(() => {
     const autoAssignments: { [key: string]: string } = {};
     const speakerMapping: { [key: string]: string } = {};
-    
+
     segments.forEach(segment => {
       if (segment.suggestedSpeaker) {
         // Map AI speaker names to people in our list
@@ -66,13 +66,13 @@ export const SpeakerIdentification = ({
           const availablePerson = people[Object.keys(speakerMapping).length] || people[0];
           speakerMapping[segment.suggestedSpeaker] = availablePerson?.id;
         }
-        
+
         if (speakerMapping[segment.suggestedSpeaker]) {
           autoAssignments[segment.id] = speakerMapping[segment.suggestedSpeaker];
         }
       }
     });
-    
+
     setSelectedSpeakers(autoAssignments);
   }, [segments, people]);
 
@@ -133,7 +133,7 @@ export const SpeakerIdentification = ({
     const conversationSegments: ConversationSegment[] = segments.map(segment => {
       const speakerId = selectedSpeakers[segment.id] || people[0].id;
       const speaker = people.find(p => p.id === speakerId) || people[0];
-      
+
       return {
         ...segment,
         speakerId,
@@ -146,6 +146,18 @@ export const SpeakerIdentification = ({
   };
 
   const allSegmentsAssigned = segments.every(segment => selectedSpeakers[segment.id]);
+
+  const handleBulkReassign = (fromSpeakerId: string, toSpeakerId: string) => {
+    setSelectedSpeakers(prev => {
+      const updated = { ...prev };
+      Object.keys(updated).forEach(segmentId => {
+        if (updated[segmentId] === fromSpeakerId) {
+          updated[segmentId] = toSpeakerId;
+        }
+      });
+      return updated;
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -236,7 +248,7 @@ export const SpeakerIdentification = ({
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-medium">Conversation Segments</h3>
           <p className="text-sm text-muted-foreground">
-            Click speakers to reassign • Hover text to edit
+            Click speaker buttons to reassign • Click edit to modify text
           </p>
         </div>
         {segments.map((segment, index) => (
@@ -262,7 +274,7 @@ export const SpeakerIdentification = ({
                   <Check className="h-4 w-4 text-green-500" />
                 )}
               </div>
-              
+
               <div className="space-y-2">
                 {editingSegments[segment.id] ? (
                   <div className="space-y-2">
@@ -308,7 +320,7 @@ export const SpeakerIdentification = ({
                   </div>
                 )}
               </div>
-              
+
               <div className="flex flex-wrap gap-2">
                 {people.map((person) => (
                   <Button
@@ -316,13 +328,23 @@ export const SpeakerIdentification = ({
                     variant={selectedSpeakers[segment.id] === person.id ? "default" : "outline"}
                     size="sm"
                     onClick={() => handleSpeakerSelect(segment.id, person.id)}
-                    className={selectedSpeakers[segment.id] === person.id ? "bg-primary text-primary-foreground" : ""}
-                  >
-                    <User className="h-4 w-4 mr-2" />
-                    {person.name}
-                  </Button>
-                ))}
-              </div>
+                    className={`
+                        ${selectedSpeakers[segment.id] === person.id 
+                          ? "bg-primary text-primary-foreground ring-2 ring-primary/50" 
+                          : "hover:bg-secondary"
+                        }
+                        transition-all duration-200 cursor-pointer
+                      `}
+                      disabled={editingSegments[segment.id]}
+                    >
+                      <User className="h-4 w-4 mr-2" />
+                      {person.name}
+                      {selectedSpeakers[segment.id] === person.id && (
+                        <Check className="h-3 w-3 ml-1" />
+                      )}
+                    </Button>
+                  ))}
+                </div>
             </div>
           </Card>
         ))}
