@@ -1,0 +1,65 @@
+chunk-T2SWDQEL.js?v=f54f256b:21551 Download the React DevTools for a better development experience: https://reactjs.org/link/react-devtools
+main.tsx:10 SW registered:  ServiceWorkerRegistration
+0d7a820d-aa87-497a-8197-c52ba493f842-00-1x8xyhs4iuh3e.kirk.replit.dev/:1 Error while trying to use the following icon from the Manifest: https://0d7a820d-aa87-497a-8197-c52ba493f842-00-1x8xyhs4iuh3e.kirk.replit.dev:8080/icon-192.png (Download error or resource isn't a valid image)
+chunk-T2SWDQEL.js?v=f54f256b:9934 Uncaught Error: Objects are not valid as a React child (found: object with keys {label, onClick}). If you meant to render a collection of children, use an array instead.
+    at throwOnInvalidObjectType (chunk-T2SWDQEL.js?v=f54f256b:9934:17)
+    at createChild (chunk-T2SWDQEL.js?v=f54f256b:10110:15)
+    at reconcileChildrenArray (chunk-T2SWDQEL.js?v=f54f256b:10282:33)
+    at reconcileChildFibers2 (chunk-T2SWDQEL.js?v=f54f256b:10559:24)
+    at reconcileChildren (chunk-T2SWDQEL.js?v=f54f256b:14290:37)
+    at updateHostComponent (chunk-T2SWDQEL.js?v=f54f256b:14807:11)
+    at beginWork (chunk-T2SWDQEL.js?v=f54f256b:15935:22)
+    at HTMLUnknownElement.callCallback2 (chunk-T2SWDQEL.js?v=f54f256b:3674:22)
+    at Object.invokeGuardedCallbackDev (chunk-T2SWDQEL.js?v=f54f256b:3699:24)
+    at invokeGuardedCallback (chunk-T2SWDQEL.js?v=f54f256b:3733:39)
+chunk-T2SWDQEL.js?v=f54f256b:9934 Uncaught Error: Objects are not valid as a React child (found: object with keys {label, onClick}). If you meant to render a collection of children, use an array instead.
+    at throwOnInvalidObjectType (chunk-T2SWDQEL.js?v=f54f256b:9934:17)
+    at createChild (chunk-T2SWDQEL.js?v=f54f256b:10110:15)
+    at reconcileChildrenArray (chunk-T2SWDQEL.js?v=f54f256b:10282:33)
+    at reconcileChildFibers2 (chunk-T2SWDQEL.js?v=f54f256b:10559:24)
+    at reconcileChildren (chunk-T2SWDQEL.js?v=f54f256b:14290:37)
+    at updateHostComponent (chunk-T2SWDQEL.js?v=f54f256b:14807:11)
+    at beginWork (chunk-T2SWDQEL.js?v=f54f256b:15935:22)
+    at HTMLUnknownElement.callCallback2 (chunk-T2SWDQEL.js?v=f54f256b:3674:22)
+    at Object.invokeGuardedCallbackDev (chunk-T2SWDQEL.js?v=f54f256b:3699:24)
+    at invokeGuardedCallback (chunk-T2SWDQEL.js?v=f54f256b:3733:39)
+chunk-T2SWDQEL.js?v=f54f256b:14032 The above error occurred in the <li> component:
+
+    at li
+    at https://0d7a820d-aa87-497a-8197-c52ba493f842-00-1x8xyhs4iuh3e.kirk.replit.dev:8080/node_modules/.vite/deps/chunk-LRMIZHYC.js?v=f54f256b:41:13
+    at https://0d7a820d-aa87-497a-8197-c52ba493f842-00-1x8xyhs4iuh3e.kirk.replit.dev:8080/node_modules/.vite/deps/chunk-UACHJROW.js?v=f54f256b:52:11
+    at https://0d7a820d-aa87-497a-8197-c52ba493f842-00-1x8xyhs4iuh3e.kirk.replit.dev:8080/node_modules/.vite/deps/chunk-UACHJROW.js?v=f54f256b:33:11
+    at https://0d7a820d-aa87-497a-8197-c52ba493f842-00-1x8xyhs4iuh3e.kirk.replit.dev:8080/node_modules/.vite/deps/chunk-LRMIZHYC.js?v=f54f256b:41:13
+    at https://0d7a820d-aa87-497a-8197-c52ba493f842-00-1x8xyhs4iuh3e.kirk.replit.dev:8080/node_modules/.vite/deps/chunk-BRHRIC3M.js?v=f54f256b:61:7
+    at https://0d7a820d-aa87-497a-8197-c52ba493f842-00-1x8xyhs4iuh3e.kirk.replit.dev:8080/node_modules/.vite/deps/chunk-UACHJROW.js?v=f54f256b:52:11
+    at https://0d7a820d-aa87-497a-8197-c52ba493f842-00-1x8xyhs4iuh3e.kirk.replit.dev:8080/node_modules/.vite/deps/chunk-UACHJROW.js?v=f54f256b:33:11
+    at https://0d7a820d-aa87-497a-8197-c52ba493f842-00-1x8xyhs4iuh3e.kirk.replit.dev:8080/node_modules/.vite/deps/chunk-MRB2OOEX.js?v=f54f256b:109:15
+    at Provider (https://0d7a820d-aa87-497a-8197-c52ba493f842-00-1x8xyhs4iuh3e.kirk.replit.dev:8080/node_modules/.vite/deps/chunk-LSQNWB54.js?v=f54f256b:38:15)
+    at https://0d7a820d-aa87-497a-8197-c52ba493f842-00-1x8xyhs4iuh3e.kirk.replit.dev:8080/node_modules/.vite/deps/@radix-ui_react-toast.js?v=f54f256b:327:7
+    at Presence (https://0d7a820d-aa87-497a-8197-c52ba493f842-00-1x8xyhs4iuh3e.kirk.replit.dev:8080/node_modules/.vite/deps/chunk-5KJT6J3C.js?v=f54f256b:24:11)
+    at https://0d7a820d-aa87-497a-8197-c52ba493f842-00-1x8xyhs4iuh3e.kirk.replit.dev:8080/node_modules/.vite/deps/@radix-ui_react-toast.js?v=f54f256b:275:13
+    at _c2 (https://0d7a820d-aa87-497a-8197-c52ba493f842-00-1x8xyhs4iuh3e.kirk.replit.dev:8080/src/components/ui/toast.tsx:45:55)
+    at Provider (https://0d7a820d-aa87-497a-8197-c52ba493f842-00-1x8xyhs4iuh3e.kirk.replit.dev:8080/node_modules/.vite/deps/chunk-LSQNWB54.js?v=f54f256b:38:15)
+    at Provider (https://0d7a820d-aa87-497a-8197-c52ba493f842-00-1x8xyhs4iuh3e.kirk.replit.dev:8080/node_modules/.vite/deps/chunk-MRB2OOEX.js?v=f54f256b:28:15)
+    at CollectionProvider (https://0d7a820d-aa87-497a-8197-c52ba493f842-00-1x8xyhs4iuh3e.kirk.replit.dev:8080/node_modules/.vite/deps/chunk-MRB2OOEX.js?v=f54f256b:89:13)
+    at ToastProvider (https://0d7a820d-aa87-497a-8197-c52ba493f842-00-1x8xyhs4iuh3e.kirk.replit.dev:8080/node_modules/.vite/deps/@radix-ui_react-toast.js?v=f54f256b:55:5)
+    at Toaster (https://0d7a820d-aa87-497a-8197-c52ba493f842-00-1x8xyhs4iuh3e.kirk.replit.dev:8080/src/components/ui/toaster.tsx:15:24)
+    at Provider (https://0d7a820d-aa87-497a-8197-c52ba493f842-00-1x8xyhs4iuh3e.kirk.replit.dev:8080/node_modules/.vite/deps/chunk-LSQNWB54.js?v=f54f256b:38:15)
+    at TooltipProvider (https://0d7a820d-aa87-497a-8197-c52ba493f842-00-1x8xyhs4iuh3e.kirk.replit.dev:8080/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=f54f256b:60:5)
+    at QueryClientProvider (https://0d7a820d-aa87-497a-8197-c52ba493f842-00-1x8xyhs4iuh3e.kirk.replit.dev:8080/node_modules/.vite/deps/@tanstack_react-query.js?v=f54f256b:2794:3)
+    at App
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+logCapturedError @ chunk-T2SWDQEL.js?v=f54f256b:14032
+chunk-T2SWDQEL.js?v=f54f256b:19413 Uncaught Error: Objects are not valid as a React child (found: object with keys {label, onClick}). If you meant to render a collection of children, use an array instead.
+    at throwOnInvalidObjectType (chunk-T2SWDQEL.js?v=f54f256b:9934:17)
+    at createChild (chunk-T2SWDQEL.js?v=f54f256b:10110:15)
+    at reconcileChildrenArray (chunk-T2SWDQEL.js?v=f54f256b:10282:33)
+    at reconcileChildFibers2 (chunk-T2SWDQEL.js?v=f54f256b:10559:24)
+    at reconcileChildren (chunk-T2SWDQEL.js?v=f54f256b:14290:37)
+    at updateHostComponent (chunk-T2SWDQEL.js?v=f54f256b:14807:11)
+    at beginWork (chunk-T2SWDQEL.js?v=f54f256b:15935:22)
+    at beginWork$1 (chunk-T2SWDQEL.js?v=f54f256b:19753:22)
+    at performUnitOfWork (chunk-T2SWDQEL.js?v=f54f256b:19198:20)
+    at workLoopSync (chunk-T2SWDQEL.js?v=f54f256b:19137:13)
