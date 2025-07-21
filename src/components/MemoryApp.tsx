@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { RecordingInterface } from "./RecordingInterface";
 import { SpeakerIdentification } from "./SpeakerIdentification";
@@ -10,6 +10,7 @@ import { Mic, MessageCircle, History, Users, Pill } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import AuthPage from "./Auth/AuthPage";
 import UserProfile from "./UserProfile";
+import { addPerson, subscribeToPeople } from "@/lib/firestore";
 
 export interface Person {
   id: string;
@@ -33,6 +34,25 @@ export interface Conversation {
   participants: string[];
 }
 
+export interface Medication {
+  id: string;
+  name: string;
+  dosage: string;
+  frequency: string;
+  startDate: Date;
+  endDate?: Date;
+  instructions: string;
+  documentImage?: string;
+  reminders: MedicationReminder[];
+}
+
+export interface MedicationReminder {
+  id: string;
+  medicationId: string;
+  time: string;
+  enabled: boolean;
+}
+
 export const MemoryApp = () => {
   const { currentUser } = useAuth();
   const [people, setPeople] = useState<Person[]>([]);
@@ -42,6 +62,17 @@ export const MemoryApp = () => {
     transcript?: string;
   } | null>(null);
   const [activeTab, setActiveTab] = useState("meds");
+
+  // Subscribe to people changes from Firestore
+  useEffect(() => {
+    if (currentUser) {
+      const unsubscribe = subscribeToPeople(currentUser.uid, (firestorePeople) => {
+        setPeople(firestorePeople);
+      });
+
+      return () => unsubscribe();
+    }
+  }, [currentUser]);
 
   // Show auth page if user is not logged in
   if (!currentUser) {
@@ -70,13 +101,23 @@ export const MemoryApp = () => {
     setActiveTab("chat");
   };
 
-  const addNewPerson = (name: string) => {
-    const newPerson: Person = {
-      id: Date.now().toString(),
-      name
-    };
-    setPeople(prev => [...prev, newPerson]);
-    return newPerson;
+  const addNewPerson = async (name: string) => {
+    if (!currentUser) return null;
+    
+    try {
+      const newPersonData = { name };
+      const personId = await addPerson(currentUser.uid, newPersonData);
+      
+      const newPerson: Person = {
+        id: personId,
+        name
+      };
+      
+      return newPerson;
+    } catch (error) {
+      console.error("Error adding person:", error);
+      return null;
+    }
   };
 
   return (

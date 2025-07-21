@@ -15,7 +15,7 @@ interface SpeakerIdentificationProps {
   transcript: string;
   people: Person[];
   onSpeakerIdentified: (speakerId: string, segments: ConversationSegment[]) => void;
-  onAddNewPerson: (name: string) => Person;
+  onAddNewPerson: (name: string) => Promise<Person | null>;
 }
 
 export const SpeakerIdentification = ({ 
@@ -99,11 +99,13 @@ export const SpeakerIdentification = ({
     });
   };
 
-  const handleAddNewPerson = () => {
+  const handleAddNewPerson = async () => {
     if (newPersonName.trim()) {
-      onAddNewPerson(newPersonName.trim());
-      setNewPersonName("");
-      setIsAddingPerson(false);
+      const newPerson = await onAddNewPerson(newPersonName.trim());
+      if (newPerson) {
+        setNewPersonName("");
+        setIsAddingPerson(false);
+      }
     }
   };
 
