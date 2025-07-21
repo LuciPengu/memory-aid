@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Send, Bot, User, Sparkles } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Conversation } from "./MemoryApp";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface ChatMessage {
   id: string;
@@ -40,6 +41,7 @@ export const ChatInterface = ({ conversations }: ChatInterfaceProps) => {
   const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { currentUser } = useAuth();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -51,12 +53,16 @@ export const ChatInterface = ({ conversations }: ChatInterfaceProps) => {
 
   const queryRAG = async (query: string) => {
     try {
+      // Get Firebase ID token for authentication
+      const token = currentUser ? await currentUser.getIdToken() : null;
+      
       const response = await fetch(
         "https://12484f40-7983-4c27-b7d7-4b2f4efa749b-00-zvkwzd4ad4mt.worf.replit.dev/rag-query",
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            ...(token && { "Authorization": `Bearer ${token}` }),
           },
           body: JSON.stringify({
             query: query,
