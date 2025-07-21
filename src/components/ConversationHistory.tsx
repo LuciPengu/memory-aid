@@ -41,13 +41,17 @@ export const ConversationHistory = ({ conversations }: ConversationHistoryProps)
   }, []);
 
   const filteredConversations = allVectors.filter(conversation => {
-    if (!conversation || !conversation.metadata) return false;
+    if (!conversation || !conversation.metadata || !conversation.document) return false;
 
     const searchTerm = searchQuery.toLowerCase();
+    const title = conversation.metadata.title || '';
+    const participants = conversation.metadata.participants || [];
+    const document = conversation.document || '';
+    
     return (
-      conversation.metadata.title.toLowerCase().includes(searchTerm) ||
-      conversation.metadata.participants?.some((p: string) => p.toLowerCase().includes(searchTerm)) ||
-      conversation.document.toLowerCase().includes(searchTerm)
+      title.toLowerCase().includes(searchTerm) ||
+      participants.some((p: string) => p && p.toLowerCase().includes(searchTerm)) ||
+      document.toLowerCase().includes(searchTerm)
     );
   });
 
@@ -140,7 +144,7 @@ export const ConversationHistory = ({ conversations }: ConversationHistoryProps)
 
                         <div className="flex-1 text-left space-y-2">
                           <div className="flex items-center justify-between">
-                            <h3 className="font-medium text-foreground">{conversation.metadata.title}</h3>
+                            <h3 className="font-medium text-foreground">{conversation.metadata.title || 'Untitled Conversation'}</h3>
                             <div className="flex items-center gap-1 text-sm text-muted-foreground">
                               <Clock className="h-3 w-3" />
                               {formatDate(conversation.metadata.date)}
@@ -164,7 +168,7 @@ export const ConversationHistory = ({ conversations }: ConversationHistoryProps)
                           </div>
 
                           <p className="text-sm text-muted-foreground line-clamp-2">
-                            {conversation.document?.substring(0, 100)}...
+                            {conversation.document ? conversation.document.substring(0, 100) + '...' : 'No content available'}
                           </p>
                         </div>
                       </div>
