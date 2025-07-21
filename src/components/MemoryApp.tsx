@@ -7,6 +7,9 @@ import { ConversationHistory } from "./ConversationHistory";
 import { MedicalOCR } from "./MedicalOCR";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Mic, MessageCircle, History, Users, Pill } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import AuthPage from "./AuthPage";
+import UserProfile from "./UserProfile";
 
 export interface Person {
   id: string;
@@ -30,50 +33,20 @@ export interface Conversation {
   participants: string[];
 }
 
-const MemoryApp = () => {
-  const [activeTab, setActiveTab] = useState("meds");
-  const [people, setPeople] = useState<Person[]>([
-    { id: "1", name: "You" },
-    { id: "2", name: "Sarah Chen" },
-    { id: "3", name: "Mike Johnson" },
-  ]);
-  
-  const [conversations, setConversations] = useState<Conversation[]>([
-    {
-      id: "1",
-      title: "Team Meeting - Project Planning",
-      date: new Date(2024, 0, 15),
-      participants: ["You", "Sarah Chen", "Mike Johnson"],
-      segments: [
-        {
-          id: "1",
-          speakerId: "1",
-          speakerName: "You",
-          content: "Let's discuss the Q1 roadmap for our new feature.",
-          timestamp: new Date(2024, 0, 15, 10, 0)
-        },
-        {
-          id: "2",
-          speakerId: "2",
-          speakerName: "Sarah Chen",
-          content: "I think we should prioritize the user authentication system first.",
-          timestamp: new Date(2024, 0, 15, 10, 2)
-        },
-        {
-          id: "3",
-          speakerId: "3",
-          speakerName: "Mike Johnson",
-          content: "Agreed. We also need to consider the database migration strategy.",
-          timestamp: new Date(2024, 0, 15, 10, 5)
-        }
-      ]
-    }
-  ]);
-
+export const MemoryApp = () => {
+  const { currentUser } = useAuth();
+  const [people, setPeople] = useState<Person[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentRecording, setCurrentRecording] = useState<{
     audioBlob?: Blob;
     transcript?: string;
   } | null>(null);
+  const [activeTab, setActiveTab] = useState("meds");
+
+  // Show auth page if user is not logged in
+  if (!currentUser) {
+    return <AuthPage />;
+  }
 
   const handleRecordingComplete = (audioBlob: Blob, transcript: string) => {
     setCurrentRecording({ audioBlob, transcript });
@@ -91,7 +64,7 @@ const MemoryApp = () => {
       participants: [...new Set(segments.map(s => s.speakerName))],
       segments
     };
-    
+
     setConversations(prev => [newConversation, ...prev]);
     setCurrentRecording(null);
     setActiveTab("chat");
@@ -123,6 +96,7 @@ const MemoryApp = () => {
       </div>
 
       <div className="container mx-auto px-4 pb-20 max-w-4xl">
+        <UserProfile />
         <Card className="bg-card border-border shadow-glow mt-4">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             {/* Mobile-optimized tab bar */}
