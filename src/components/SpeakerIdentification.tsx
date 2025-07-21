@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, User, Check, Edit2, Save, X } from "lucide-react";
 import { Person, ConversationSegment } from "./MemoryApp";
-import { useAuth } from "./useAuth";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface SpeakerIdentificationProps {
   transcript: string;
