@@ -94,9 +94,11 @@ export const SpeakerIdentification = ({
   const handleEditText = (segmentId: string) => {
     const segment = segments.find(s => s.id === segmentId);
     if (segment) {
+      // Initialize with current content (either edited version or original)
+      const currentText = editedTexts[segmentId] || segment.content;
       setEditedTexts(prev => ({
         ...prev,
-        [segmentId]: editedTexts[segmentId] || segment.content
+        [segmentId]: currentText
       }));
       setEditingSegments(prev => ({
         ...prev,
@@ -113,13 +115,7 @@ export const SpeakerIdentification = ({
   };
 
   const handleCancelEdit = (segmentId: string) => {
-    const segment = segments.find(s => s.id === segmentId);
-    if (segment) {
-      setEditedTexts(prev => ({
-        ...prev,
-        [segmentId]: segment.content
-      }));
-    }
+    // Don't reset the edited text, just exit editing mode
     setEditingSegments(prev => ({
       ...prev,
       [segmentId]: false
@@ -304,7 +300,8 @@ export const SpeakerIdentification = ({
                       size="sm"
                       variant="ghost"
                       onClick={() => handleEditText(segment.id)}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity ml-2"
+                      className="opacity-60 group-hover:opacity-100 transition-opacity ml-2 shrink-0"
+                      title="Edit text"
                     >
                       <Edit2 className="h-3 w-3" />
                     </Button>
