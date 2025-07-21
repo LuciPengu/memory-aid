@@ -1,4 +1,3 @@
-
 import { 
   collection, 
   addDoc, 
@@ -49,19 +48,49 @@ export const getPeople = async (userId: string): Promise<Person[]> => {
 };
 
 export const subscribeToPeople = (userId: string, callback: (people: Person[]) => void) => {
+  console.log("Setting up people subscription for userId:", userId);
+
   const q = query(
     collection(db, "people"), 
     where("userId", "==", userId),
     orderBy("createdAt", "desc")
   );
-  
-  return onSnapshot(q, (querySnapshot) => {
-    const people = querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    } as Person));
-    callback(people);
-  });
+
+  return onSnapshot(q, 
+    (querySnapshot) => {
+      console.log("People subscription snapshot received, doc count:", querySnapshot.docs.length);
+      console.log("Snapshot metadata:", {
+        hasPendingWrites: querySnapshot.metadata.hasPendingWrites,
+        fromCache: querySnapshot.metadata.fromCache
+      });
+
+      const people = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        console.log("Person document data:", { id: doc.id, ...data });
+        return {
+          id: doc.id,
+          ...data
+        } as Person;
+      });
+
+      console.log("Processed people array:", people);
+      callback(people);
+    },
+    (error) => {
+      console.error("Error in people subscription:", error);
+      console.error("Error code:", error.code);
+      console.error("Error message:", error.message);
+
+      // Fallback: try to get people with a one-time read
+      console.log("Subscription failed, falling back to one-time read");
+      getPeople(userId).then(fallbackPeople => {
+        console.log("Fallback read successful:", fallbackPeople);
+        callback(fallbackPeople);
+      }).catch(fallbackError => {
+        console.error("Fallback read also failed:", fallbackError);
+      });
+    }
+  );
 };
 
 // Medications operations
@@ -110,7 +139,7 @@ export const subscribeToMedications = (userId: string, callback: (medications: M
     where("userId", "==", userId),
     orderBy("createdAt", "desc")
   );
-  
+
   return onSnapshot(q, (querySnapshot) => {
     const medications = querySnapshot.docs.map(doc => {
       const data = doc.data();
@@ -129,7 +158,7 @@ export const updateMedication = async (medicationId: string, updates: Partial<Me
   try {
     const docRef = doc(db, "medications", medicationId);
     const updateData = { ...updates };
-    
+
     // Convert dates to Timestamps
     if (updateData.startDate) {
       updateData.startDate = Timestamp.fromDate(updateData.startDate as Date);
@@ -137,7 +166,7 @@ export const updateMedication = async (medicationId: string, updates: Partial<Me
     if (updateData.endDate) {
       updateData.endDate = Timestamp.fromDate(updateData.endDate as Date);
     }
-    
+
     await updateDoc(docRef, updateData);
   } catch (error) {
     console.error("Error updating medication:", error);

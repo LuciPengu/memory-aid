@@ -10,7 +10,7 @@ import { Mic, MessageCircle, History, Users, Pill } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import AuthPage from "./Auth/AuthPage";
 import UserProfile from "./UserProfile";
-import { addPerson, subscribeToPeople } from "@/lib/firestore";
+import { addPerson, subscribeToPeople, getPeople } from "@/lib/firestore";
 
 export interface Person {
   id: string;
@@ -66,11 +66,34 @@ export const MemoryApp = () => {
   // Subscribe to people changes from Firestore
   useEffect(() => {
     if (currentUser) {
+      console.log("Setting up people subscription for user:", currentUser.uid);
+
       const unsubscribe = subscribeToPeople(currentUser.uid, (firestorePeople) => {
+        console.log("People subscription update received:", firestorePeople);
+        console.log("Number of people:", firestorePeople.length);
         setPeople(firestorePeople);
       });
 
-      return () => unsubscribe();
+      // Also do an initial fetch to ensure we have data
+      const initialFetch = async () => {
+        try {
+          console.log("Doing initial people fetch...");
+          const initialPeople = await getPeople(currentUser.uid);
+          console.log("Initial fetch result:", initialPeople);
+          setPeople(initialPeople);
+        } catch (error) {
+          console.error("Initial people fetch failed:", error);
+        }
+      };
+
+      initialFetch();
+
+      return () => {
+        console.log("Cleaning up people subscription");
+        unsubscribe();
+      };
+    } else {
+      console.log("No current user, not setting up people subscription");
     }
   }, [currentUser]);
 
@@ -103,16 +126,16 @@ export const MemoryApp = () => {
 
   const addNewPerson = async (name: string) => {
     if (!currentUser) return null;
-    
+
     try {
       const newPersonData = { name };
       const personId = await addPerson(currentUser.uid, newPersonData);
-      
+
       const newPerson: Person = {
         id: personId,
         name
       };
-      
+
       return newPerson;
     } catch (error) {
       console.error("Error adding person:", error);
