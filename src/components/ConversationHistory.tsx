@@ -41,18 +41,23 @@ export const ConversationHistory = ({ conversations }: ConversationHistoryProps)
   }, []);
 
   const filteredConversations = allVectors.filter(conversation => {
-    if (!conversation || !conversation.metadata || !conversation.document) return false;
+    if (!conversation || !conversation.metadata) return false;
 
     const searchTerm = searchQuery.toLowerCase();
     const title = conversation.metadata.title || '';
     const participants = Array.isArray(conversation.metadata.participants) ? conversation.metadata.participants : [];
     const document = conversation.document || '';
     
-    return (
-      title.toLowerCase().includes(searchTerm) ||
-      participants.some((p: string) => p && p.toLowerCase().includes(searchTerm)) ||
-      document.toLowerCase().includes(searchTerm)
-    );
+    try {
+      return (
+        title.toLowerCase().includes(searchTerm) ||
+        participants.some((p: string) => p && typeof p === 'string' && p.toLowerCase().includes(searchTerm)) ||
+        document.toLowerCase().includes(searchTerm)
+      );
+    } catch (error) {
+      console.warn('Error filtering conversation:', error);
+      return false;
+    }
   });
 
   const toggleExpanded = (conversationId: string) => {
@@ -154,13 +159,15 @@ export const ConversationHistory = ({ conversations }: ConversationHistoryProps)
                           <div className="flex items-center gap-2">
                             <Users className="h-3 w-3 text-muted-foreground" />
                             <div className="flex items-center gap-1">
-                              {Array.isArray(conversation.metadata.participants) && conversation.metadata.participants.slice(0, 3).map((participant: string, index: number) => (
-                                <Badge key={index} variant="secondary" className="text-xs">
-                                  {participant}
-                                </Badge>
-                              ))}
+                              {Array.isArray(conversation.metadata.participants) && conversation.metadata.participants.slice(0, 3).map((participant: string, index: number) => 
+                                participant ? (
+                                  <Badge key={`participant-${conversation.id}-${index}`} variant="secondary" className="text-xs">
+                                    {participant}
+                                  </Badge>
+                                ) : null
+                              )}
                               {Array.isArray(conversation.metadata.participants) && conversation.metadata.participants.length > 3 && (
-                                <Badge variant="secondary" className="text-xs">
+                                <Badge key={`more-participants-${conversation.id}`} variant="secondary" className="text-xs">
                                   +{conversation.metadata.participants.length - 3}
                                 </Badge>
                               )}
@@ -191,54 +198,58 @@ export const ConversationHistory = ({ conversations }: ConversationHistoryProps)
 
                       <div className="space-y-3">
                         {/* Display diarized segments if available */}
-                        {conversation.metadata.diarized_segments?.map((segment: any, index: number) => (
-                          <div key={index} className="flex gap-3">
-                            <Avatar className="h-8 w-8 flex-shrink-0">
-                              <AvatarFallback className="text-xs bg-secondary">
-                                {segment.speaker || `S${index + 1}`}
-                              </AvatarFallback>
-                            </Avatar>
+                        {Array.isArray(conversation.metadata.diarized_segments) && conversation.metadata.diarized_segments.map((segment: any, index: number) => 
+                          segment && segment.text ? (
+                            <div key={`diarized-${conversation.id}-${index}`} className="flex gap-3">
+                              <Avatar className="h-8 w-8 flex-shrink-0">
+                                <AvatarFallback className="text-xs bg-secondary">
+                                  {segment.speaker || `S${index + 1}`}
+                                </AvatarFallback>
+                              </Avatar>
 
-                            <div className="flex-1 space-y-1">
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium text-foreground">
-                                  {segment.speaker || `Speaker ${index + 1}`}
-                                </span>
-                                <span className="text-xs text-muted-foreground">
-                                  {segment.start && segment.end ? `${Math.floor(segment.start)}s - ${Math.floor(segment.end)}s` : ''}
-                                </span>
+                              <div className="flex-1 space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium text-foreground">
+                                    {segment.speaker || `Speaker ${index + 1}`}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {segment.start && segment.end ? `${Math.floor(segment.start)}s - ${Math.floor(segment.end)}s` : ''}
+                                  </span>
+                                </div>
+                                <p className="text-sm text-foreground leading-relaxed">
+                                  {segment.text}
+                                </p>
                               </div>
-                              <p className="text-sm text-foreground leading-relaxed">
-                                {segment.text}
-                              </p>
                             </div>
-                          </div>
-                        ))}
+                          ) : null
+                        )}
                         
                         {/* Fallback to regular segments if diarized not available */}
-                        {!conversation.metadata.diarized_segments && conversation.metadata.segments?.map((segment: any, index: number) => (
-                          <div key={segment.id || index} className="flex gap-3">
-                            <Avatar className="h-8 w-8 flex-shrink-0">
-                              <AvatarFallback className="text-xs bg-secondary">
-                                {segment.speakerName ? segment.speakerName.split(' ').map((n: string) => n[0]).join('').toUpperCase() : `S${index + 1}`}
-                              </AvatarFallback>
-                            </Avatar>
+                        {!conversation.metadata.diarized_segments && Array.isArray(conversation.metadata.segments) && conversation.metadata.segments.map((segment: any, index: number) => 
+                          segment && (segment.content || segment.text) ? (
+                            <div key={segment.id || `segment-${conversation.id}-${index}`} className="flex gap-3">
+                              <Avatar className="h-8 w-8 flex-shrink-0">
+                                <AvatarFallback className="text-xs bg-secondary">
+                                  {segment.speakerName ? segment.speakerName.split(' ').map((n: string) => n[0]).join('').toUpperCase() : `S${index + 1}`}
+                                </AvatarFallback>
+                              </Avatar>
 
-                            <div className="flex-1 space-y-1">
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium text-foreground">
-                                  {segment.speakerName || `Speaker ${index + 1}`}
-                                </span>
-                                <span className="text-xs text-muted-foreground">
-                                  {segment.timestamp ? (typeof segment.timestamp === 'string' ? segment.timestamp : formatTime(segment.timestamp)) : ''}
-                                </span>
+                              <div className="flex-1 space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium text-foreground">
+                                    {segment.speakerName || `Speaker ${index + 1}`}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {segment.timestamp ? (typeof segment.timestamp === 'string' ? segment.timestamp : formatTime(segment.timestamp)) : ''}
+                                  </span>
+                                </div>
+                                <p className="text-sm text-foreground leading-relaxed">
+                                  {segment.content || segment.text}
+                                </p>
                               </div>
-                              <p className="text-sm text-foreground leading-relaxed">
-                                {segment.content || segment.text}
-                              </p>
                             </div>
-                          </div>
-                        ))}
+                          ) : null
+                        )}
                         
                         {/* If no segments available, show raw document */}
                         {!conversation.metadata.diarized_segments && !conversation.metadata.segments && conversation.document && (
