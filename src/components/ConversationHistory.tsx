@@ -21,7 +21,7 @@ export const ConversationHistory = ({ conversations }: ConversationHistoryProps)
   useEffect(() => {
     const fetchAllVectors = async () => {
       try {
-        const response = await fetch('/list-all-vectors');
+        const response = await fetch('https://12484f40-7983-4c27-b7d7-4b2f4efa749b-00-zvkwzd4ad4mt.worf.replit.dev/list-all-vectors');
         if (response.ok) {
           const data = await response.json();
           if (data.status === "success") {
