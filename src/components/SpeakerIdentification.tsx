@@ -77,10 +77,15 @@ export const SpeakerIdentification = ({
   }, [segments, people]);
 
   const handleSpeakerSelect = (segmentId: string, speakerId: string) => {
-    setSelectedSpeakers(prev => ({
-      ...prev,
-      [segmentId]: speakerId
-    }));
+    console.log(`Assigning segment ${segmentId} to speaker ${speakerId}`);
+    setSelectedSpeakers(prev => {
+      const updated = {
+        ...prev,
+        [segmentId]: speakerId
+      };
+      console.log('Updated speaker assignments:', updated);
+      return updated;
+    });
   };
 
   const handleAddNewPerson = () => {
@@ -321,21 +326,26 @@ export const SpeakerIdentification = ({
                 )}
               </div>
 
-              <div className="flex flex-wrap gap-2">
-                {people.map((person) => (
-                  <Button
-                    key={person.id}
-                    variant={selectedSpeakers[segment.id] === person.id ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => handleSpeakerSelect(segment.id, person.id)}
-                    className={`
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Assign to speaker:</Label>
+                <div className="flex flex-wrap gap-2">
+                  {people.map((person) => (
+                    <Button
+                      key={person.id}
+                      variant={selectedSpeakers[segment.id] === person.id ? "default" : "outline"}
+                      size="sm"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleSpeakerSelect(segment.id, person.id);
+                      }}
+                      className={`
                         ${selectedSpeakers[segment.id] === person.id 
                           ? "bg-primary text-primary-foreground ring-2 ring-primary/50" 
                           : "hover:bg-secondary"
                         }
                         transition-all duration-200 cursor-pointer
                       `}
-                      disabled={editingSegments[segment.id]}
                     >
                       <User className="h-4 w-4 mr-2" />
                       {person.name}
@@ -345,6 +355,7 @@ export const SpeakerIdentification = ({
                     </Button>
                   ))}
                 </div>
+              </div>
             </div>
           </Card>
         ))}
