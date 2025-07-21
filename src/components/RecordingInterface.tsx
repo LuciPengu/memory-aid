@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Mic, Square, Play, Pause, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface RecordingInterfaceProps {
   onRecordingComplete: (audioBlob: Blob, transcript: string) => void;
@@ -25,6 +26,7 @@ export const RecordingInterface = ({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
+  const { currentUser } = useAuth();
 
   const startRecording = async () => {
     try {
@@ -118,6 +120,9 @@ export const RecordingInterface = ({
           reader.readAsDataURL(recordedAudio);
         });
 
+        // Get Firebase ID token for authentication
+        const token = currentUser ? await currentUser.getIdToken() : null;
+        
         // Send the audio data URL to transcription endpoint
         const transcribeResponse = await fetch(
           "https://12484f40-7983-4c27-b7d7-4b2f4efa749b-00-zvkwzd4ad4mt.worf.replit.dev/transcribe",
@@ -125,6 +130,7 @@ export const RecordingInterface = ({
             method: "POST",
             headers: {
               "Content-Type": "application/json",
+              ...(token && { "Authorization": `Bearer ${token}` }),
             },
             body: JSON.stringify({
               audio_url: audioDataUrl,

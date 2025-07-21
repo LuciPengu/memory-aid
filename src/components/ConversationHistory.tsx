@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Search, Calendar, Users, ChevronDown, ChevronRight, Clock } from "lucide-react";
 import { Conversation } from "./MemoryApp";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface ConversationHistoryProps {
   conversations: Conversation[];
@@ -17,11 +18,19 @@ export const ConversationHistory = ({ conversations }: ConversationHistoryProps)
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedConversations, setExpandedConversations] = useState<Set<string>>(new Set());
   const [allVectors, setAllVectors] = useState<any[]>([]);
+  const { currentUser } = useAuth();
 
   useEffect(() => {
     const fetchAllVectors = async () => {
       try {
-        const response = await fetch('https://12484f40-7983-4c27-b7d7-4b2f4efa749b-00-zvkwzd4ad4mt.worf.replit.dev/list-all-vectors');
+        // Get Firebase ID token for authentication
+        const token = currentUser ? await currentUser.getIdToken() : null;
+        
+        const response = await fetch('https://12484f40-7983-4c27-b7d7-4b2f4efa749b-00-zvkwzd4ad4mt.worf.replit.dev/list-all-vectors', {
+          headers: {
+            ...(token && { "Authorization": `Bearer ${token}` }),
+          },
+        });
         if (response.ok) {
           const data = await response.json();
           if (data.status === "success") {
@@ -37,8 +46,10 @@ export const ConversationHistory = ({ conversations }: ConversationHistoryProps)
       }
     };
 
-    fetchAllVectors();
-  }, []);
+    if (currentUser) {
+      fetchAllVectors();
+    }
+  }, [currentUser]);
 
   const filteredConversations = allVectors.filter(conversation => {
     if (!conversation || !conversation.metadata || !conversation.document) return false;
