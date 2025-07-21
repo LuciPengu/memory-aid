@@ -61,51 +61,133 @@ export const MedicalOCR = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       setIsScanning(true);
       
-      // Mock OCR processing
-      setTimeout(() => {
-        const mockOCRResult = `
-Dr. Sarah Wilson
-Medical Center
-Phone: (555) 123-4567
+      try {
+        // Convert file to data URL
+        const reader = new FileReader();
+        const imageDataUrl = await new Promise<string>((resolve, reject) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
 
-Patient: John Doe
-DOB: 01/15/1985
+        // Send to medication calendar endpoint
+        const response = await fetch('https://12484f40-7983-4c27-b7d7-4b2f4efa749b-00-zvkwzd4ad4mt.worf.replit.dev/medication-calendar', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            image_url: imageDataUrl
+          }),
+        });
 
-Prescription:
-Medication: Lisinopril
-Dosage: 10mg tablets
-Frequency: Once daily
-Quantity: 30 tablets
-Refills: 2
+        if (!response.ok) {
+          throw new Error(`Failed to process prescription: ${response.status}`);
+        }
 
-Instructions: Take with food, preferably in the morning.
-Avoid potassium supplements.
-
-Date: ${new Date().toLocaleDateString()}
-        `;
+        const result = await response.json();
         
-        setScannedText(mockOCRResult);
+        if (result.status === "success" && result.medication_info) {
+          const medicines = result.medication_info.medicines;
+          const startDate = new Date(result.medication_info.start_date);
+          
+          // Create detailed scanned text from the API response
+          const medicationList = medicines.map((med: any) => 
+            `Medication: ${med.name}\nDosage: ${med.dosage}\nFrequency: ${med.frequency} times daily\nTiming: ${med.timing}\nDuration: ${med.duration_days} days\nInstructions: ${med.special_instructions}`
+          ).join('\n\n');
+          
+          setScannedText(`Prescription processed successfully:\n\n${medicationList}\n\nStart Date: ${startDate.toLocaleDateString()}\n\nTotal calendar events created: ${result.total_events}`);
+          
+          // Auto-fill with first medication for manual adding if needed
+          if (medicines.length > 0) {
+            const firstMed = medicines[0];
+            setNewMedication({
+              name: firstMed.name,
+              dosage: firstMed.dosage,
+              frequency: `${firstMed.frequency} times daily`,
+              instructions: firstMed.special_instructions || firstMed.timing,
+              reminderTimes: ["09:00"]
+            });
+            setSelectedDate(startDate);
+          }
+          
+          // Add all medications to the list
+          const newMedications = medicines.map((med: any, index: number) => {
+            const medication: Medication = {
+              id: `${Date.now()}-${index}`,
+              name: med.name,
+              dosage: med.dosage,
+              frequency: `${med.frequency} times daily`,
+              startDate: startDate,
+              instructions: `${med.timing}. ${med.special_instructions}`.trim(),
+              documentImage: imageDataUrl,
+              reminders: [] // Will be populated based on frequency
+            };
+
+            // Set up reminders based on frequency
+            const times = med.frequency === "1" ? ["20:00"] :
+                         med.frequency === "2" ? ["08:00", "20:00"] :
+                         med.frequency === "3" ? ["08:00", "14:00", "20:00"] :
+                         ["09:00"];
+            
+            medication.reminders = times.map((time: string, timeIndex: number) => ({
+              id: `${medication.id}-${timeIndex}`,
+              medicationId: medication.id,
+              time,
+              enabled: true
+            }));
+
+            return medication;
+          });
+
+          setMedications(prev => [...prev, ...newMedications]);
+          
+          setIsScanning(false);
+          
+          toast({
+            title: "Prescription processed successfully",
+            description: `${medicines.length} medication(s) added with ${result.total_events} calendar reminders`,
+            action: result.calendar_links?.length > 0 ? {
+              label: "Open Calendar",
+              onClick: () => window.open(result.calendar_links[0].calendar_url, '_blank')
+            } : undefined
+          });
+
+          // Show calendar links if available
+          if (result.calendar_links?.length > 0) {
+            setTimeout(() => {
+              toast({
+                title: "Calendar reminders ready",
+                description: "Click to add medication reminders to your calendar",
+                action: {
+                  label: "Add to Calendar",
+                  onClick: () => {
+                    result.calendar_links.forEach((link: any) => {
+                      window.open(link.calendar_url, '_blank');
+                    });
+                  }
+                }
+              });
+            }, 2000);
+          }
+        } else {
+          throw new Error(result.error || "Failed to process prescription");
+        }
+      } catch (error) {
+        console.error("Error processing prescription:", error);
         setIsScanning(false);
         
-        // Auto-extract medication info
-        setNewMedication({
-          name: "Lisinopril",
-          dosage: "10mg",
-          frequency: "Once daily",
-          instructions: "Take with food, preferably in the morning",
-          reminderTimes: ["09:00"]
-        });
-        
         toast({
-          title: "Document scanned successfully",
-          description: "Medication information extracted",
+          title: "Processing failed",
+          description: error instanceof Error ? error.message : "Failed to process prescription image",
+          variant: "destructive",
         });
-      }, 2000);
+      }
     }
   };
 
@@ -165,6 +247,56 @@ Date: ${new Date().toLocaleDateString()}
       }
       return med;
     }));
+  };
+
+  const createCalendarReminders = async (medication: Medication) => {
+    if (!medication.documentImage) return;
+    
+    try {
+      toast({
+        title: "Creating calendar reminders",
+        description: "Generating medication schedule...",
+      });
+
+      const response = await fetch('https://12484f40-7983-4c27-b7d7-4b2f4efa749b-00-zvkwzd4ad4mt.worf.replit.dev/medication-calendar', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          image_url: medication.documentImage
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to create calendar: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.status === "success" && result.calendar_links?.length > 0) {
+        toast({
+          title: "Calendar reminders ready",
+          description: `${result.total_events} reminders created`,
+          action: {
+            label: "Open Calendar",
+            onClick: () => {
+              result.calendar_links.forEach((link: any) => {
+                window.open(link.calendar_url, '_blank');
+              });
+            }
+          }
+        });
+      } else {
+        throw new Error("No calendar links generated");
+      }
+    } catch (error) {
+      toast({
+        title: "Calendar creation failed",
+        description: error instanceof Error ? error.message : "Failed to create calendar reminders",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -373,6 +505,17 @@ Date: ${new Date().toLocaleDateString()}
                     </Button>
                   ))}
                 </div>
+                {medication.documentImage && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => createCalendarReminders(medication)}
+                    className="mt-2"
+                  >
+                    <CalendarIcon className="mr-1 h-3 w-3" />
+                    Add to Calendar
+                  </Button>
+                )}
               </div>
             </div>
           </Card>
