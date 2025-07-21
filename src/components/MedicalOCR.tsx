@@ -93,12 +93,13 @@ export const MedicalOCR = () => {
         const result = await response.json();
 
         if (result.status === "success" && result.medication_info) {
-          const medicines = result.medication_info.medicines;
-          const calendarLinks = result.calendar_links || [];
+          const medicines = result.medication_info.medicines || [];
+          const calendarLinks = Array.isArray(result.calendar_links) ? result.calendar_links : [];
           const startDate = new Date(result.medication_info.start_date);
 
           // Helper function to parse frequency
           const parseFrequency = (frequencyText: string): string => {
+            if (!frequencyText) return "1x daily";
             if (frequencyText.includes("Every 4 hours")) return "6x daily";
             if (frequencyText.includes("Every 6 hours")) return "4x daily";
             if (frequencyText.includes("Every 8 hours")) return "3x daily";
@@ -109,22 +110,25 @@ export const MedicalOCR = () => {
 
           // Get duration from calendar links (fallback to 7 days)
           const getDuration = (medicineName: string): number => {
-            const link = calendarLinks.find((link: any) => link.medicine === medicineName);
+            if (!Array.isArray(calendarLinks) || calendarLinks.length === 0) return 7;
+            const link = calendarLinks.find((link: any) => link && link.medicine === medicineName);
             return link?.duration_days || 7;
           };
 
           // Get reminder times from calendar links
           const getReminderTimes = (medicineName: string): string[] => {
-            const link = calendarLinks.find((link: any) => link.medicine === medicineName);
-            return link?.all_dose_times || ["09:00"];
+            if (!Array.isArray(calendarLinks) || calendarLinks.length === 0) return ["09:00"];
+            const link = calendarLinks.find((link: any) => link && link.medicine === medicineName);
+            return Array.isArray(link?.all_dose_times) ? link.all_dose_times : ["09:00"];
           };
 
           // Create detailed scanned text from the API response
-          const medicationList = medicines.map((med: any) => {
+          const medicationList = Array.isArray(medicines) ? medicines.map((med: any) => {
+            if (!med || !med.name) return "Invalid medication data";
             const duration = getDuration(med.name);
             const frequency = parseFrequency(med.frequency);
-            return `Medication: ${med.name}\nDosage: ${med.dosage}\nFrequency: ${frequency}\nTiming: ${med.timing}\nDuration: ${duration} days\nInstructions: ${med.special_instructions}`;
-          }).join('\n\n');
+            return `Medication: ${med.name}\nDosage: ${med.dosage || "Not specified"}\nFrequency: ${frequency}\nTiming: ${med.timing || "As prescribed"}\nDuration: ${duration} days\nInstructions: ${med.special_instructions || "Follow prescription"}`;
+          }).join('\n\n') : "No medications found";
 
           setScannedText(`Prescription processed successfully:\n\n${medicationList}\n\nStart Date: ${startDate.toLocaleDateString()}\n\nTotal calendar events created: ${result.total_events}`);
 
@@ -153,7 +157,7 @@ export const MedicalOCR = () => {
           }
 
           // Add all medications to the list
-          const newMedications = medicines.map((med: any, index: number) => {
+          const newMedications = Array.isArray(medicines) ? medicines.filter((med: any) => med && med.name).map((med: any, index: number) => {
             const reminderTimes = getReminderTimes(med.name);
             const duration = getDuration(med.name);
             const frequency = parseFrequency(med.frequency);
@@ -161,22 +165,27 @@ export const MedicalOCR = () => {
             const medication: Medication = {
               id: `${Date.now()}-${index}`,
               name: med.name,
-              dosage: med.dosage,
+              dosage: med.dosage || "Not specified",
               frequency: frequency,
               startDate: startDate,
               endDate: new Date(startDate.getTime() + (duration * 24 * 60 * 60 * 1000)), // Add duration to start date
-              instructions: `${med.timing}. ${med.special_instructions}`.trim(),
+              instructions: `${med.timing || "As prescribed"}. ${med.special_instructions || ""}`.trim(),
               documentImage: imageDataUrl,
-              reminders: reminderTimes.map((time: string, timeIndex: number) => ({
+              reminders: Array.isArray(reminderTimes) ? reminderTimes.map((time: string, timeIndex: number) => ({
                 id: `${Date.now()}-${index}-${timeIndex}`,
                 medicationId: `${Date.now()}-${index}`,
-                time,
+                time: time || "09:00",
                 enabled: true
-              }))
+              })) : [{
+                id: `${Date.now()}-${index}-0`,
+                medicationId: `${Date.now()}-${index}`,
+                time: "09:00",
+                enabled: true
+              }]
             };
 
             return medication;
-          });
+          }) : [];
 
           setMedications(prev => [...prev, ...newMedications]);
 
@@ -192,7 +201,7 @@ export const MedicalOCR = () => {
           });
 
           // Show calendar links if available
-          if (result.calendar_links?.length > 0) {
+          if (Array.isArray(result.calendar_links) && result.calendar_links.length > 0) {
             setTimeout(() => {
               toast({
                 title: "Calendar reminders ready",
@@ -200,7 +209,7 @@ export const MedicalOCR = () => {
                 action: {
                   label: "Add to Calendar",
                   onClick: () => {
-                    result.calendar_links.forEach((link: any) => {
+                    result.calendar_links.filter((link: any) => link && link.calendar_url).forEach((link: any) => {
                       window.open(link.calendar_url, '_blank');
                     });
                   }
