@@ -213,10 +213,6 @@ export const MedicalOCR = () => {
           toast({
             title: "Prescription processed successfully",
             description: `${medicines.length} medication(s) added with ${result.total_events} calendar reminders`,
-            action: result.calendar_links?.length > 0 ? {
-              label: "Open Calendar",
-              onClick: () => window.open(result.calendar_links[0].calendar_url, '_blank')
-            } : undefined
           });
 
           // Show calendar links if available
@@ -225,14 +221,6 @@ export const MedicalOCR = () => {
               toast({
                 title: "Calendar reminders ready",
                 description: "Click to add medication reminders to your calendar",
-                action: {
-                  label: "Add to Calendar",
-                  onClick: () => {
-                    result.calendar_links.filter((link: any) => link && link.calendar_url).forEach((link: any) => {
-                      window.open(link.calendar_url, '_blank');
-                    });
-                  }
-                }
               });
             }, 2000);
           }
@@ -355,27 +343,11 @@ export const MedicalOCR = () => {
           toast({
             title: "Calendar reminders ready",
             description: `${medicationLinks.length} reminders created for ${medication.name}`,
-            action: {
-              label: "Open Calendar",
-              onClick: () => {
-                medicationLinks.forEach((link: any) => {
-                  window.open(link.calendar_url, '_blank');
-                });
-              }
-            }
           });
         } else {
           toast({
             title: "All calendar reminders ready",
             description: `${result.total_events} total reminders created`,
-            action: {
-              label: "Open All Calendars",
-              onClick: () => {
-                result.calendar_links.forEach((link: any) => {
-                  window.open(link.calendar_url, '_blank');
-                });
-              }
-            }
           });
         }
       } else {
