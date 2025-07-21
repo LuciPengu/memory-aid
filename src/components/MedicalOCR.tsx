@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,8 +11,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Camera, Upload, Calendar as CalendarIcon, Clock, Pill, Plus, Bell } from "lucide-react";
 import { format } from "date-fns";
-import { useAuth } from "@/contexts/AuthContext";
-import { addMedication, subscribeToMedications, updateMedication, deleteMedication } from "@/lib/firestore";
 
 export interface Medication {
   id: string;
@@ -34,8 +32,19 @@ export interface MedicationReminder {
 }
 
 export const MedicalOCR = () => {
-  const { currentUser } = useAuth();
-  const [medications, setMedications] = useState<Medication[]>([]);
+  const [medications, setMedications] = useState<Medication[]>([
+    {
+      id: "1",
+      name: "Lisinopril",
+      dosage: "10mg",
+      frequency: "Once daily",
+      startDate: new Date(),
+      instructions: "Take with food, preferably in the morning",
+      reminders: [
+        { id: "1", medicationId: "1", time: "09:00", enabled: true }
+      ]
+    }
+  ]);
 
   const [isScanning, setIsScanning] = useState(false);
   const [scannedText, setScannedText] = useState("");
@@ -51,17 +60,6 @@ export const MedicalOCR = () => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
-
-  // Subscribe to medications changes from Firestore
-  useEffect(() => {
-    if (currentUser) {
-      const unsubscribe = subscribeToMedications(currentUser.uid, (firestoreMedications) => {
-        setMedications(firestoreMedications);
-      });
-
-      return () => unsubscribe();
-    }
-  }, [currentUser]);
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -206,15 +204,8 @@ export const MedicalOCR = () => {
             });
           }
 
-          if (newMedications.length > 0 && currentUser) {
-            // Save each medication to Firestore
-            for (const medication of newMedications) {
-              try {
-                await addMedication(currentUser.uid, medication);
-              } catch (error) {
-                console.error("Error saving medication to Firestore:", error);
-              }
-            }
+          if (newMedications.length > 0) {
+            setMedications(prev => [...prev, ...newMedications]);
           }
 
           setIsScanning(false);
@@ -256,69 +247,56 @@ export const MedicalOCR = () => {
     }
   };
 
-  const addMedication = async () => {
-    if (!newMedication.name || !selectedDate || !currentUser) return;
+  const addMedication = () => {
+    if (!newMedication.name || !selectedDate) return;
 
-    try {
-      const medicationData = {
-        name: newMedication.name,
-        dosage: newMedication.dosage,
-        frequency: newMedication.frequency,
-        startDate: selectedDate,
-        instructions: newMedication.instructions,
-        reminders: newMedication.reminderTimes.map((time, index) => ({
-          id: `${Date.now()}-${index}`,
-          medicationId: Date.now().toString(),
-          time,
-          enabled: true
-        }))
-      };
+    const medication: Medication = {
+      id: Date.now().toString(),
+      name: newMedication.name,
+      dosage: newMedication.dosage,
+      frequency: newMedication.frequency,
+      startDate: selectedDate,
+      instructions: newMedication.instructions,
+      reminders: newMedication.reminderTimes.map((time, index) => ({
+        id: `${Date.now()}-${index}`,
+        medicationId: Date.now().toString(),
+        time,
+        enabled: true
+      }))
+    };
 
-      await addMedication(currentUser.uid, medicationData);
+    setMedications(prev => [...prev, medication]);
+    setNewMedication({
+      name: "",
+      dosage: "",
+      frequency: "",
+      instructions: "",
+      reminderTimes: ["09:00"]
+    });
+    setSelectedDate(undefined);
+    setScannedText("");
+    setIsAddingMed(false);
 
-      setNewMedication({
-        name: "",
-        dosage: "",
-        frequency: "",
-        instructions: "",
-        reminderTimes: ["09:00"]
-      });
-      setSelectedDate(undefined);
-      setScannedText("");
-      setIsAddingMed(false);
-
-      toast({
-        title: "Medication added",
-        description: "Reminders have been set up",
-      });
-    } catch (error) {
-      toast({
-        title: "Error adding medication",
-        description: "Please try again",
-        variant: "destructive",
-      });
-    }
+    toast({
+      title: "Medication added",
+      description: "Reminders have been set up",
+    });
   };
 
-  const toggleReminder = async (medicationId: string, reminderId: string) => {
-    try {
-      const medication = medications.find(med => med.id === medicationId);
-      if (!medication) return;
-
-      const updatedReminders = medication.reminders.map(reminder => 
-        reminder.id === reminderId 
-          ? { ...reminder, enabled: !reminder.enabled }
-          : reminder
-      );
-
-      await updateMedication(medicationId, { reminders: updatedReminders });
-    } catch (error) {
-      toast({
-        title: "Error updating reminder",
-        description: "Please try again",
-        variant: "destructive",
-      });
-    }
+  const toggleReminder = (medicationId: string, reminderId: string) => {
+    setMedications(prev => prev.map(med => {
+      if (med.id === medicationId) {
+        return {
+          ...med,
+          reminders: med.reminders.map(reminder => 
+            reminder.id === reminderId 
+              ? { ...reminder, enabled: !reminder.enabled }
+              : reminder
+          )
+        };
+      }
+      return med;
+    }));
   };
 
   const createCalendarReminders = async (medication: Medication) => {

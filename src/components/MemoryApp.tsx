@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { RecordingInterface } from "./RecordingInterface";
 import { SpeakerIdentification } from "./SpeakerIdentification";
@@ -10,7 +10,6 @@ import { Mic, MessageCircle, History, Users, Pill } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import AuthPage from "./Auth/AuthPage";
 import UserProfile from "./UserProfile";
-import { addPerson, subscribeToPeople, getPeople } from "@/lib/firestore";
 
 export interface Person {
   id: string;
@@ -34,25 +33,6 @@ export interface Conversation {
   participants: string[];
 }
 
-export interface Medication {
-  id: string;
-  name: string;
-  dosage: string;
-  frequency: string;
-  startDate: Date;
-  endDate?: Date;
-  instructions: string;
-  documentImage?: string;
-  reminders: MedicationReminder[];
-}
-
-export interface MedicationReminder {
-  id: string;
-  medicationId: string;
-  time: string;
-  enabled: boolean;
-}
-
 export const MemoryApp = () => {
   const { currentUser } = useAuth();
   const [people, setPeople] = useState<Person[]>([]);
@@ -62,40 +42,6 @@ export const MemoryApp = () => {
     transcript?: string;
   } | null>(null);
   const [activeTab, setActiveTab] = useState("meds");
-
-  // Subscribe to people changes from Firestore
-  useEffect(() => {
-    if (currentUser) {
-      console.log("Setting up people subscription for user:", currentUser.uid);
-
-      const unsubscribe = subscribeToPeople(currentUser.uid, (firestorePeople) => {
-        console.log("People subscription update received:", firestorePeople);
-        console.log("Number of people:", firestorePeople.length);
-        setPeople(firestorePeople);
-      });
-
-      // Also do an initial fetch to ensure we have data
-      const initialFetch = async () => {
-        try {
-          console.log("Doing initial people fetch...");
-          const initialPeople = await getPeople(currentUser.uid);
-          console.log("Initial fetch result:", initialPeople);
-          setPeople(initialPeople);
-        } catch (error) {
-          console.error("Initial people fetch failed:", error);
-        }
-      };
-
-      initialFetch();
-
-      return () => {
-        console.log("Cleaning up people subscription");
-        unsubscribe();
-      };
-    } else {
-      console.log("No current user, not setting up people subscription");
-    }
-  }, [currentUser]);
 
   // Show auth page if user is not logged in
   if (!currentUser) {
@@ -124,23 +70,13 @@ export const MemoryApp = () => {
     setActiveTab("chat");
   };
 
-  const addNewPerson = async (name: string) => {
-    if (!currentUser) return null;
-
-    try {
-      const newPersonData = { name };
-      const personId = await addPerson(currentUser.uid, newPersonData);
-
-      const newPerson: Person = {
-        id: personId,
-        name
-      };
-
-      return newPerson;
-    } catch (error) {
-      console.error("Error adding person:", error);
-      return null;
-    }
+  const addNewPerson = (name: string) => {
+    const newPerson: Person = {
+      id: Date.now().toString(),
+      name
+    };
+    setPeople(prev => [...prev, newPerson]);
+    return newPerson;
   };
 
   return (
