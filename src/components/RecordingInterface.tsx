@@ -1,7 +1,10 @@
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Mic, Square, Play, Pause } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Mic, Square, Play, Pause, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface RecordingInterfaceProps {
@@ -15,6 +18,8 @@ export const RecordingInterface = ({
   const [isPlaying, setIsPlaying] = useState(false);
   const [recordedAudio, setRecordedAudio] = useState<Blob | null>(null);
   const [recordingTime, setRecordingTime] = useState(0);
+  const [showSpeakerDialog, setShowSpeakerDialog] = useState(false);
+  const [speakerCount, setSpeakerCount] = useState(2);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -93,6 +98,10 @@ export const RecordingInterface = ({
     }
   };
 
+  const showSpeakerCountDialog = () => {
+    setShowSpeakerDialog(true);
+  };
+
   const processRecording = async () => {
     if (recordedAudio) {
       try {
@@ -120,6 +129,7 @@ export const RecordingInterface = ({
             body: JSON.stringify({
               audio_url: audioDataUrl,
               language: "en",
+              num_speakers: speakerCount,
             }),
           },
         );
@@ -257,7 +267,7 @@ export const RecordingInterface = ({
                     {isPlaying ? "Pause" : "Play"}
                   </Button>
                   <Button
-                    onClick={processRecording}
+                    onClick={showSpeakerCountDialog}
                     className="bg-primary hover:bg-primary-glow text-primary-foreground"
                   >
                     Process Recording
@@ -270,6 +280,69 @@ export const RecordingInterface = ({
       </Card>
 
       <audio ref={audioRef} className="hidden" />
+
+      {/* Speaker Count Dialog */}
+      <Dialog open={showSpeakerDialog} onOpenChange={setShowSpeakerDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              How many speakers?
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Knowing the expected number of speakers helps improve the accuracy of speaker identification.
+            </p>
+            
+            <div className="space-y-2">
+              <Label htmlFor="speakerCount">Number of speakers in this recording</Label>
+              <Input
+                id="speakerCount"
+                type="number"
+                min="1"
+                max="10"
+                value={speakerCount}
+                onChange={(e) => setSpeakerCount(parseInt(e.target.value) || 2)}
+                className="text-center text-lg font-semibold"
+              />
+            </div>
+
+            <div className="grid grid-cols-4 gap-2">
+              {[1, 2, 3, 4].map((count) => (
+                <Button
+                  key={count}
+                  variant={speakerCount === count ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSpeakerCount(count)}
+                  className="aspect-square"
+                >
+                  {count}
+                </Button>
+              ))}
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button 
+                onClick={() => {
+                  setShowSpeakerDialog(false);
+                  processRecording();
+                }}
+                className="flex-1 bg-primary hover:bg-primary-glow text-primary-foreground"
+              >
+                Process with {speakerCount} speaker{speakerCount !== 1 ? 's' : ''}
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowSpeakerDialog(false)}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
