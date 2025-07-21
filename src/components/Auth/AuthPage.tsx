@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { LoginForm } from './LoginForm';
 import { SignupForm } from './SignupForm';
 
-export const AuthPage = () => {
+const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
 
   const toggleMode = () => {
@@ -22,3 +22,5 @@ export const AuthPage = () => {
     </div>
   );
 };
+
+export default AuthPage;
