@@ -8,6 +8,8 @@ import { Send, Bot, User, Sparkles } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Conversation } from "./MemoryApp";
 import { useAuth } from "@/contexts/AuthContext";
+import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface ChatMessage {
   id: string;
@@ -177,7 +179,9 @@ export const ChatInterface = ({ conversations }: ChatInterfaceProps) => {
                       : 'bg-secondary text-secondary-foreground'
                   }`}
                 >
-                  <p className="text-sm leading-relaxed">{message.content}</p>
+                  <div className="text-sm leading-relaxed prose prose-sm max-w-none prose-invert">
+                    <Markdown remarkPlugins={[remarkGfm]}>{message.content}</Markdown>
+                  </div>
                 </div>
                 
                 {message.sources && message.sources.length > 0 && (

@@ -9,6 +9,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Search, Calendar, Users, ChevronDown, ChevronRight, Clock } from "lucide-react";
 import { Conversation } from "./MemoryApp";
 import { useAuth } from "@/contexts/AuthContext";
+import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface ConversationHistoryProps {
   conversations: Conversation[];
@@ -193,7 +195,9 @@ export const ConversationHistory = ({ conversations }: ConversationHistoryProps)
                         {conversation.metadata.summary ? (
                           <div className="mb-3 p-3 bg-secondary/30 rounded-lg">
                             <h4 className="font-medium text-foreground mb-1">Summary</h4>
-                            <p className="text-sm">{conversation.metadata.summary}</p>
+                            <div className="text-sm prose prose-sm max-w-none prose-invert">
+                              <Markdown remarkPlugins={[remarkGfm]}>{conversation.metadata.summary}</Markdown>
+                            </div>
                           </div>
                         ) : null}
                         
@@ -219,9 +223,9 @@ export const ConversationHistory = ({ conversations }: ConversationHistoryProps)
                                   {segment.start && segment.end ? `${Math.floor(segment.start)}s - ${Math.floor(segment.end)}s` : ''}
                                 </span>
                               </div>
-                              <p className="text-sm text-foreground leading-relaxed">
-                                {segment.text}
-                              </p>
+                              <div className="text-sm text-foreground leading-relaxed prose prose-sm max-w-none prose-invert">
+                                <Markdown remarkPlugins={[remarkGfm]}>{segment.text}</Markdown>
+                              </div>
                             </div>
                           </div>
                         ))}
@@ -244,9 +248,9 @@ export const ConversationHistory = ({ conversations }: ConversationHistoryProps)
                                   {segment.timestamp ? (typeof segment.timestamp === 'string' ? segment.timestamp : formatTime(segment.timestamp)) : ''}
                                 </span>
                               </div>
-                              <p className="text-sm text-foreground leading-relaxed">
-                                {segment.content || segment.text}
-                              </p>
+                              <div className="text-sm text-foreground leading-relaxed prose prose-sm max-w-none prose-invert">
+                                <Markdown remarkPlugins={[remarkGfm]}>{segment.content || segment.text}</Markdown>
+                              </div>
                             </div>
                           </div>
                         ))}
@@ -254,9 +258,9 @@ export const ConversationHistory = ({ conversations }: ConversationHistoryProps)
                         {/* If no segments available, show raw document */}
                         {!conversation.metadata.diarized_segments && !conversation.metadata.segments && conversation.document && (
                           <div className="p-3 bg-secondary/30 rounded-lg">
-                            <p className="text-sm text-foreground leading-relaxed">
-                              {conversation.document}
-                            </p>
+                            <div className="text-sm text-foreground leading-relaxed prose prose-sm max-w-none prose-invert">
+                              <Markdown remarkPlugins={[remarkGfm]}>{conversation.document}</Markdown>
+                            </div>
                           </div>
                         )}
                       </div>
