@@ -275,21 +275,40 @@ export const ChatInterface = ({ conversations }: ChatInterfaceProps) => {
       <div className="space-y-2">
         <Label className="text-sm font-medium">Try asking:</Label>
         <div className="flex flex-wrap gap-2">
-          {[
-            "What did we discuss about quarterly goals?",
-            "Who mentioned authentication systems?",
-            "Show me conversations about project planning",
-            "What decisions were made about the database?",
-          ].map((suggestion, index) => (
-            <Badge
-              key={index}
-              variant="outline"
-              className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
-              onClick={() => setInputValue(suggestion)}
-            >
-              {suggestion}
-            </Badge>
-          ))}
+          {conversations.length > 0 ? (
+            // Get unique people names from conversations
+            Array.from(new Set(
+              conversations.flatMap(conv => 
+                conv.participants || []
+              )
+            )).slice(0, 4).map((person, index) => (
+              <Badge
+                key={index}
+                variant="outline"
+                className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
+                onClick={() => setInputValue(`What did ${person} say?`)}
+              >
+                What did {person} say?
+              </Badge>
+            ))
+          ) : (
+            // Fallback suggestions when no conversations exist
+            [
+              "What did we discuss about quarterly goals?",
+              "Who mentioned authentication systems?",
+              "Show me conversations about project planning",
+              "What decisions were made about the database?",
+            ].map((suggestion, index) => (
+              <Badge
+                key={index}
+                variant="outline"
+                className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
+                onClick={() => setInputValue(suggestion)}
+              >
+                {suggestion}
+              </Badge>
+            ))
+          )}
         </div>
       </div>
     </div>
