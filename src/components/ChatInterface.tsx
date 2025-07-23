@@ -276,20 +276,16 @@ export const ChatInterface = ({ conversations, people }: ChatInterfaceProps) => 
       <div className="space-y-2">
         <Label className="text-sm font-medium">Try asking:</Label>
         <div className="flex flex-wrap gap-2">
-          {conversations.length > 0 ? (
-            // Get unique people names from conversations
-            Array.from(new Set(
-              conversations.flatMap(conv => 
-                conv.participants || []
-              )
-            )).slice(0, 4).map((person, index) => (
+          {people.length > 0 ? (
+            // Use people from Firebase Realtime Database
+            people.slice(0, 4).map((person, index) => (
               <Badge
                 key={index}
                 variant="outline"
                 className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
-                onClick={() => setInputValue(`What did ${person} say?`)}
+                onClick={() => setInputValue(`What did ${person.name} say?`)}
               >
-                What did {person} say?
+                What did {person.name} say?
               </Badge>
             ))
           ) : (
