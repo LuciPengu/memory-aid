@@ -141,10 +141,7 @@ export const SpeakerIdentification = ({
       
       console.log("Person added successfully:", { id: newPersonRef.key, ...personData });
       
-      // Call the parent component's add function
-      onAddNewPerson(newPersonName.trim());
-      
-      // Reset form
+      // Reset form - Firebase listener will handle updating the people list
       setNewPersonName("");
       setIsAddingPerson(false);
       
