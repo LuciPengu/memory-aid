@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,22 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Camera, Upload, Calendar as CalendarIcon, Clock, Pill, Plus, Bell } from "lucide-react";
 import { format } from "date-fns";
+import { useAuth } from "@/contexts/AuthContext";
+import { 
+  collection, 
+  addDoc, 
+  getDocs, 
+  query, 
+  where, 
+  orderBy, 
+  onSnapshot,
+  serverTimestamp,
+  Timestamp,
+  deleteDoc,
+  doc,
+  updateDoc
+} from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 export interface Medication {
   id: string;
@@ -22,6 +38,8 @@ export interface Medication {
   instructions: string;
   documentImage?: string;
   reminders: MedicationReminder[];
+  userId?: string;
+  createdAt?: Timestamp;
 }
 
 export interface MedicationReminder {
@@ -31,20 +49,20 @@ export interface MedicationReminder {
   enabled: boolean;
 }
 
+export interface PrescriptionData {
+  id: string;
+  userId: string;
+  scannedText: string;
+  medications: Medication[];
+  documentImage?: string;
+  createdAt: Timestamp;
+  processed: boolean;
+}
+
 export const MedicalOCR = () => {
-  const [medications, setMedications] = useState<Medication[]>([
-    {
-      id: "1",
-      name: "Lisinopril",
-      dosage: "10mg",
-      frequency: "Once daily",
-      startDate: new Date(),
-      instructions: "Take with food, preferably in the morning",
-      reminders: [
-        { id: "1", medicationId: "1", time: "09:00", enabled: true }
-      ]
-    }
-  ]);
+  const [medications, setMedications] = useState<Medication[]>([]);
+  const [prescriptions, setPrescriptions] = useState<PrescriptionData[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [isScanning, setIsScanning] = useState(false);
   const [scannedText, setScannedText] = useState("");
@@ -60,6 +78,149 @@ export const MedicalOCR = () => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const { currentUser } = useAuth();
+
+  // Load data from Firebase when component mounts
+  useEffect(() => {
+    if (!currentUser) {
+      setLoading(false);
+      return;
+    }
+
+    const loadData = async () => {
+      try {
+        // Load medications
+        const medicationsQuery = query(
+          collection(db, "medications"),
+          where("userId", "==", currentUser.uid),
+          orderBy("createdAt", "desc")
+        );
+
+        const unsubscribeMedications = onSnapshot(medicationsQuery, (snapshot) => {
+          const medicationsData = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              ...data,
+              startDate: data.startDate?.toDate() || new Date(),
+              endDate: data.endDate?.toDate() || undefined,
+            } as Medication;
+          });
+          setMedications(medicationsData);
+        });
+
+        // Load prescriptions
+        const prescriptionsQuery = query(
+          collection(db, "prescriptions"),
+          where("userId", "==", currentUser.uid),
+          orderBy("createdAt", "desc")
+        );
+
+        const unsubscribePrescriptions = onSnapshot(prescriptionsQuery, (snapshot) => {
+          const prescriptionsData = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+          })) as PrescriptionData[];
+          setPrescriptions(prescriptionsData);
+        });
+
+        setLoading(false);
+
+        // Return cleanup function
+        return () => {
+          unsubscribeMedications();
+          unsubscribePrescriptions();
+        };
+      } catch (error) {
+        console.error("Error loading data:", error);
+        toast({
+          title: "Error loading data",
+          description: "Failed to load your medications and prescriptions",
+          variant: "destructive",
+        });
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [currentUser, toast]);
+
+  // Save prescription data to Firebase
+  const savePrescriptionData = async (scannedText: string, medications: Medication[], documentImage?: string) => {
+    if (!currentUser) return;
+
+    try {
+      const prescriptionData = {
+        userId: currentUser.uid,
+        scannedText,
+        medications: medications.map(med => ({
+          ...med,
+          startDate: Timestamp.fromDate(med.startDate),
+          endDate: med.endDate ? Timestamp.fromDate(med.endDate) : null,
+        })),
+        documentImage,
+        processed: true,
+        createdAt: serverTimestamp(),
+      };
+
+      await addDoc(collection(db, "prescriptions"), prescriptionData);
+
+      // Save individual medications
+      for (const medication of medications) {
+        await saveMedicationToFirebase(medication);
+      }
+
+      toast({
+        title: "Prescription saved",
+        description: "Your prescription data has been saved successfully",
+      });
+    } catch (error) {
+      console.error("Error saving prescription:", error);
+      toast({
+        title: "Save failed",
+        description: "Failed to save prescription data",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Save medication to Firebase
+  const saveMedicationToFirebase = async (medication: Medication) => {
+    if (!currentUser) return;
+
+    try {
+      const medicationData = {
+        ...medication,
+        userId: currentUser.uid,
+        startDate: Timestamp.fromDate(medication.startDate),
+        endDate: medication.endDate ? Timestamp.fromDate(medication.endDate) : null,
+        createdAt: serverTimestamp(),
+      };
+
+      await addDoc(collection(db, "medications"), medicationData);
+    } catch (error) {
+      console.error("Error saving medication:", error);
+      throw error;
+    }
+  };
+
+  // Delete medication from Firebase
+  const deleteMedicationFromFirebase = async (medicationId: string) => {
+    try {
+      await deleteDoc(doc(db, "medications", medicationId));
+      toast({
+        title: "Medication deleted",
+        description: "Medication has been removed successfully",
+      });
+    } catch (error) {
+      console.error("Error deleting medication:", error);
+      toast({
+        title: "Delete failed",
+        description: "Failed to delete medication",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -205,7 +366,12 @@ export const MedicalOCR = () => {
           }
 
           if (newMedications.length > 0) {
-            setMedications(prev => [...prev, ...newMedications]);
+            // Save to Firebase instead of just local state
+            await savePrescriptionData(
+              medicationList,
+              newMedications,
+              imageDataUrl
+            );
           }
 
           setIsScanning(false);
@@ -247,56 +413,84 @@ export const MedicalOCR = () => {
     }
   };
 
-  const addMedication = () => {
-    if (!newMedication.name || !selectedDate) return;
+  const addMedication = async () => {
+    if (!newMedication.name || !selectedDate || !currentUser) return;
 
-    const medication: Medication = {
-      id: Date.now().toString(),
-      name: newMedication.name,
-      dosage: newMedication.dosage,
-      frequency: newMedication.frequency,
-      startDate: selectedDate,
-      instructions: newMedication.instructions,
-      reminders: newMedication.reminderTimes.map((time, index) => ({
-        id: `${Date.now()}-${index}`,
-        medicationId: Date.now().toString(),
-        time,
-        enabled: true
-      }))
-    };
+    try {
+      const medicationId = Date.now().toString();
+      const medication: Medication = {
+        id: medicationId,
+        name: newMedication.name,
+        dosage: newMedication.dosage,
+        frequency: newMedication.frequency,
+        startDate: selectedDate,
+        instructions: newMedication.instructions,
+        reminders: newMedication.reminderTimes.map((time, index) => ({
+          id: `${medicationId}-${index}`,
+          medicationId: medicationId,
+          time,
+          enabled: true
+        }))
+      };
 
-    setMedications(prev => [...prev, medication]);
-    setNewMedication({
-      name: "",
-      dosage: "",
-      frequency: "",
-      instructions: "",
-      reminderTimes: ["09:00"]
-    });
-    setSelectedDate(undefined);
-    setScannedText("");
-    setIsAddingMed(false);
+      await saveMedicationToFirebase(medication);
 
-    toast({
-      title: "Medication added",
-      description: "Reminders have been set up",
-    });
+      setNewMedication({
+        name: "",
+        dosage: "",
+        frequency: "",
+        instructions: "",
+        reminderTimes: ["09:00"]
+      });
+      setSelectedDate(undefined);
+      setScannedText("");
+      setIsAddingMed(false);
+
+      toast({
+        title: "Medication added",
+        description: "Reminders have been set up",
+      });
+    } catch (error) {
+      toast({
+        title: "Failed to add medication",
+        description: "Please try again",
+        variant: "destructive",
+      });
+    }
   };
 
-  const toggleReminder = (medicationId: string, reminderId: string) => {
-    setMedications(prev => prev.map(med => {
-      if (med.id === medicationId) {
-        return {
-          ...med,
-          reminders: med.reminders.map(reminder => 
-            reminder.id === reminderId 
-              ? { ...reminder, enabled: !reminder.enabled }
-              : reminder
-          )
-        };
-      }
-      return med;
-    }));
+  const toggleReminder = async (medicationId: string, reminderId: string) => {
+    try {
+      const medication = medications.find(med => med.id === medicationId);
+      if (!medication) return;
+
+      const updatedReminders = medication.reminders.map(reminder => 
+        reminder.id === reminderId 
+          ? { ...reminder, enabled: !reminder.enabled }
+          : reminder
+      );
+
+      const updatedMedication = {
+        ...medication,
+        reminders: updatedReminders
+      };
+
+      await updateDoc(doc(db, "medications", medicationId), {
+        reminders: updatedReminders
+      });
+
+      toast({
+        title: "Reminder updated",
+        description: "Reminder preference saved",
+      });
+    } catch (error) {
+      console.error("Error updating reminder:", error);
+      toast({
+        title: "Update failed",
+        description: "Failed to update reminder",
+        variant: "destructive",
+      });
+    }
   };
 
   const createCalendarReminders = async (medication: Medication) => {
@@ -362,6 +556,31 @@ export const MedicalOCR = () => {
       });
     }
   };
+
+  if (!currentUser) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center">
+          <h2 className="text-2xl font-semibold mb-2">Medical Documents & Meds</h2>
+          <p className="text-muted-foreground">
+            Please sign in to access your medical records
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center">
+          <h2 className="text-2xl font-semibold mb-2">Medical Documents & Meds</h2>
+          <p className="text-muted-foreground">Loading your medications...</p>
+          <div className="animate-spin h-8 w-8 border-b-2 border-primary mx-auto mt-4"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -576,17 +795,26 @@ export const MedicalOCR = () => {
                       );
                     })}
                   </div>
-                  {medication.documentImage && (
+                  <div className="flex gap-2 mt-2">
+                    {medication.documentImage && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => createCalendarReminders(medication)}
+                      >
+                        <CalendarIcon className="mr-1 h-3 w-3" />
+                        Add to Calendar
+                      </Button>
+                    )}
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => createCalendarReminders(medication)}
-                      className="mt-2"
+                      onClick={() => deleteMedicationFromFirebase(medication.id)}
+                      className="text-red-600 hover:text-red-700"
                     >
-                      <CalendarIcon className="mr-1 h-3 w-3" />
-                      Add to Calendar
+                      Delete
                     </Button>
-                  )}
+                  </div>
                 </div>
               </div>
             </Card>
