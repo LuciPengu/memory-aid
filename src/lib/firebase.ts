@@ -3,7 +3,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getAnalytics } from "firebase/analytics";
-import { getFirestore } from "firebase/firestore";
 import { getDatabase } from "firebase/database";
 
 // Your web app's Firebase configuration
@@ -27,12 +26,9 @@ export const auth = getAuth(app);
 // Initialize Analytics
 export const analytics = getAnalytics(app);
 
-// Initialize Firestore and get a reference to the service
-export const db = getFirestore(app);
-
 // Initialize Realtime Database and get a reference to the service
 export const rtdb = getDatabase(app);
 
-console.log("Firebase app, Authentication, Analytics, Firestore, and Realtime Database initialized successfully!");
+console.log("Firebase app, Authentication, Analytics, and Realtime Database initialized successfully!");
 
 export default app;
