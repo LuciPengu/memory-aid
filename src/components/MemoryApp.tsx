@@ -49,14 +49,14 @@ export const MemoryApp = () => {
     if (!currentUser) return;
 
     console.log("Setting up people subscription for user:", currentUser.uid);
-    
+
     import("firebase/database").then(({ ref, onValue }) => {
       import("@/lib/firebase").then(({ rtdb }) => {
         const peopleRef = ref(rtdb, `users/${currentUser.uid}/people`);
         const unsubscribe = onValue(peopleRef, (snapshot) => {
           const data = snapshot.val();
           console.log("People data updated:", data);
-          
+
           if (data) {
             const localPeople = Object.entries(data).map(([id, personData]: [string, any]) => ({
               id,
@@ -177,7 +177,7 @@ export const MemoryApp = () => {
             </TabsContent>
 
             <TabsContent value="chat" className="p-4 md:p-6">
-              <ChatInterface conversations={conversations} />
+              <ChatInterface conversations={conversations} people={people} />
             </TabsContent>
 
             <TabsContent value="history" className="p-4 md:p-6">

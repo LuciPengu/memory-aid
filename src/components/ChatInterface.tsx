@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Send, Bot, User, Sparkles } from "lucide-react";
 import { Label } from "@/components/ui/label";
-import { Conversation } from "./MemoryApp";
+import { Conversation, Person } from "./MemoryApp";
 import { useAuth } from "@/contexts/AuthContext";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -29,9 +29,10 @@ interface ChatMessage {
 
 interface ChatInterfaceProps {
   conversations: Conversation[];
+  people: Person[];
 }
 
-export const ChatInterface = ({ conversations }: ChatInterfaceProps) => {
+export const ChatInterface = ({ conversations, people }: ChatInterfaceProps) => {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "welcome",
@@ -57,7 +58,7 @@ export const ChatInterface = ({ conversations }: ChatInterfaceProps) => {
     try {
       // Get Firebase ID token for authentication
       const token = currentUser ? await currentUser.getIdToken() : null;
-      
+
       const response = await fetch(
         "https://12484f40-7983-4c27-b7d7-4b2f4efa749b-00-zvkwzd4ad4mt.worf.replit.dev/rag-query",
         {
@@ -78,7 +79,7 @@ export const ChatInterface = ({ conversations }: ChatInterfaceProps) => {
       }
 
       const result = await response.json();
-      
+
       if (result.status === "success") {
         return {
           answer: result.answer,
@@ -115,7 +116,7 @@ export const ChatInterface = ({ conversations }: ChatInterfaceProps) => {
 
     try {
       const ragResult = await queryRAG(currentQuery);
-      
+
       const botMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         content: ragResult.answer,
@@ -170,7 +171,7 @@ export const ChatInterface = ({ conversations }: ChatInterfaceProps) => {
                   {message.isUser ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
                 </AvatarFallback>
               </Avatar>
-              
+
               <div className={`max-w-[80%] ${message.isUser ? 'text-right' : 'text-left'}`}>
                 <div
                   className={`p-3 rounded-lg ${
@@ -183,7 +184,7 @@ export const ChatInterface = ({ conversations }: ChatInterfaceProps) => {
                     <Markdown remarkPlugins={[remarkGfm]}>{message.content}</Markdown>
                   </div>
                 </div>
-                
+
                 {message.sources && message.sources.length > 0 && (
                   <div className="mt-2 space-y-1">
                     <div className="flex items-center gap-1">
@@ -211,7 +212,7 @@ export const ChatInterface = ({ conversations }: ChatInterfaceProps) => {
                     </div>
                   </div>
                 )}
-                
+
                 {message.relatedConversations && message.relatedConversations.length > 0 && !message.sources && (
                   <div className="mt-2 flex flex-wrap gap-1">
                     <Sparkles className="h-3 w-3 text-muted-foreground mt-1" />
@@ -220,14 +221,14 @@ export const ChatInterface = ({ conversations }: ChatInterfaceProps) => {
                     </span>
                   </div>
                 )}
-                
+
                 <span className="text-xs text-muted-foreground mt-1 block">
                   {message.timestamp.toLocaleTimeString()}
                 </span>
               </div>
             </div>
           ))}
-          
+
           {isTyping && (
             <div className="flex gap-3">
               <Avatar className="h-8 w-8">
@@ -244,7 +245,7 @@ export const ChatInterface = ({ conversations }: ChatInterfaceProps) => {
               </div>
             </div>
           )}
-          
+
           <div ref={messagesEndRef} />
         </div>
 
