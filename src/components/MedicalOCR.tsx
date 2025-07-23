@@ -13,20 +13,18 @@ import { Camera, Upload, Calendar as CalendarIcon, Clock, Pill, Plus, Bell } fro
 import { format } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import { 
-  collection, 
-  addDoc, 
-  getDocs, 
-  query, 
-  where, 
-  orderBy, 
-  onSnapshot,
-  serverTimestamp,
-  Timestamp,
-  deleteDoc,
-  doc,
-  updateDoc
-} from "firebase/firestore";
-import { db } from "@/lib/firebase";
+  ref, 
+  push, 
+  set, 
+  onValue, 
+  remove, 
+  update,
+  serverTimestamp as rtdbServerTimestamp,
+  query,
+  orderByChild,
+  equalTo
+} from "firebase/database";
+import { rtdb } from "@/lib/firebase";
 
 export interface Medication {
   id: string;
@@ -39,7 +37,7 @@ export interface Medication {
   documentImage?: string;
   reminders: MedicationReminder[];
   userId?: string;
-  createdAt?: Timestamp;
+  createdAt?: number;
 }
 
 export interface MedicationReminder {
@@ -55,7 +53,7 @@ export interface PrescriptionData {
   scannedText: string;
   medications: Medication[];
   documentImage?: string;
-  createdAt: Timestamp;
+  createdAt: number;
   processed: boolean;
 }
 
@@ -80,48 +78,49 @@ export const MedicalOCR = () => {
   const { toast } = useToast();
   const { currentUser } = useAuth();
 
-  // Load data from Firebase when component mounts
+  // Load data from Firebase Realtime Database when component mounts
   useEffect(() => {
     if (!currentUser) {
       setLoading(false);
       return;
     }
 
-    const loadData = async () => {
+    const loadData = () => {
       try {
         // Load medications
-        const medicationsQuery = query(
-          collection(db, "medications"),
-          where("userId", "==", currentUser.uid),
-          orderBy("createdAt", "desc")
-        );
-
-        const unsubscribeMedications = onSnapshot(medicationsQuery, (snapshot) => {
-          const medicationsData = snapshot.docs.map(doc => {
-            const data = doc.data();
-            return {
-              id: doc.id,
-              ...data,
-              startDate: data.startDate?.toDate() || new Date(),
-              endDate: data.endDate?.toDate() || undefined,
-            } as Medication;
-          });
-          setMedications(medicationsData);
+        const medicationsRef = ref(rtdb, `medications/${currentUser.uid}`);
+        const unsubscribeMedications = onValue(medicationsRef, (snapshot) => {
+          const data = snapshot.val();
+          if (data) {
+            const medicationsData = Object.entries(data).map(([id, medicationData]: [string, any]) => ({
+              id,
+              ...medicationData,
+              startDate: new Date(medicationData.startDate),
+              endDate: medicationData.endDate ? new Date(medicationData.endDate) : undefined,
+            }));
+            // Sort by createdAt descending
+            medicationsData.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            setMedications(medicationsData);
+          } else {
+            setMedications([]);
+          }
         });
 
         // Load prescriptions
-        const prescriptionsQuery = query(
-          collection(db, "prescriptions"),
-          where("userId", "==", currentUser.uid),
-          orderBy("createdAt", "desc")
-        );
-
-        const unsubscribePrescriptions = onSnapshot(prescriptionsQuery, (snapshot) => {
-          const prescriptionsData = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data(),
-          })) as PrescriptionData[];
-          setPrescriptions(prescriptionsData);
+        const prescriptionsRef = ref(rtdb, `prescriptions/${currentUser.uid}`);
+        const unsubscribePrescriptions = onValue(prescriptionsRef, (snapshot) => {
+          const data = snapshot.val();
+          if (data) {
+            const prescriptionsData = Object.entries(data).map(([id, prescriptionData]: [string, any]) => ({
+              id,
+              ...prescriptionData,
+            }));
+            // Sort by createdAt descending
+            prescriptionsData.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            setPrescriptions(prescriptionsData);
+          } else {
+            setPrescriptions([]);
+          }
         });
 
         setLoading(false);
@@ -142,10 +141,11 @@ export const MedicalOCR = () => {
       }
     };
 
-    loadData();
+    const cleanup = loadData();
+    return cleanup;
   }, [currentUser, toast]);
 
-  // Save prescription data to Firebase
+  // Save prescription data to Firebase Realtime Database
   const savePrescriptionData = async (scannedText: string, medications: Medication[], documentImage?: string) => {
     if (!currentUser) return;
 
@@ -155,15 +155,17 @@ export const MedicalOCR = () => {
         scannedText,
         medications: medications.map(med => ({
           ...med,
-          startDate: Timestamp.fromDate(med.startDate),
-          endDate: med.endDate ? Timestamp.fromDate(med.endDate) : null,
+          startDate: med.startDate.getTime(),
+          endDate: med.endDate ? med.endDate.getTime() : null,
         })),
         documentImage,
         processed: true,
-        createdAt: serverTimestamp(),
+        createdAt: Date.now(),
       };
 
-      await addDoc(collection(db, "prescriptions"), prescriptionData);
+      const prescriptionsRef = ref(rtdb, `prescriptions/${currentUser.uid}`);
+      const newPrescriptionRef = push(prescriptionsRef);
+      await set(newPrescriptionRef, prescriptionData);
 
       // Save individual medications
       for (const medication of medications) {
@@ -184,7 +186,7 @@ export const MedicalOCR = () => {
     }
   };
 
-  // Save medication to Firebase
+  // Save medication to Firebase Realtime Database
   const saveMedicationToFirebase = async (medication: Medication) => {
     if (!currentUser) return;
 
@@ -192,22 +194,26 @@ export const MedicalOCR = () => {
       const medicationData = {
         ...medication,
         userId: currentUser.uid,
-        startDate: Timestamp.fromDate(medication.startDate),
-        endDate: medication.endDate ? Timestamp.fromDate(medication.endDate) : null,
-        createdAt: serverTimestamp(),
+        startDate: medication.startDate.getTime(),
+        endDate: medication.endDate ? medication.endDate.getTime() : null,
+        createdAt: Date.now(),
       };
 
-      await addDoc(collection(db, "medications"), medicationData);
+      const medicationsRef = ref(rtdb, `medications/${currentUser.uid}/${medication.id}`);
+      await set(medicationsRef, medicationData);
     } catch (error) {
       console.error("Error saving medication:", error);
       throw error;
     }
   };
 
-  // Delete medication from Firebase
+  // Delete medication from Firebase Realtime Database
   const deleteMedicationFromFirebase = async (medicationId: string) => {
+    if (!currentUser) return;
+
     try {
-      await deleteDoc(doc(db, "medications", medicationId));
+      const medicationRef = ref(rtdb, `medications/${currentUser.uid}/${medicationId}`);
+      await remove(medicationRef);
       toast({
         title: "Medication deleted",
         description: "Medication has been removed successfully",
@@ -460,6 +466,8 @@ export const MedicalOCR = () => {
   };
 
   const toggleReminder = async (medicationId: string, reminderId: string) => {
+    if (!currentUser) return;
+
     try {
       const medication = medications.find(med => med.id === medicationId);
       if (!medication) return;
@@ -470,12 +478,8 @@ export const MedicalOCR = () => {
           : reminder
       );
 
-      const updatedMedication = {
-        ...medication,
-        reminders: updatedReminders
-      };
-
-      await updateDoc(doc(db, "medications", medicationId), {
+      const medicationRef = ref(rtdb, `medications/${currentUser.uid}/${medicationId}`);
+      await update(medicationRef, {
         reminders: updatedReminders
       });
 
