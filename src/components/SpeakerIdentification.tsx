@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus, User, Check, Edit2, Save, X } from "lucide-react";
 import { Person, ConversationSegment } from "./MemoryApp";
 import { useAuth } from "@/contexts/AuthContext";
-import { addPerson } from "@/lib/firestore";
+
 import { useToast } from "@/hooks/use-toast";
 
 interface SpeakerIdentificationProps {
@@ -125,25 +125,33 @@ export const SpeakerIdentification = ({
       console.log("Adding new person:", newPersonName.trim());
       console.log("Current user UID:", currentUser.uid);
       
-      const newPerson = await addPerson(currentUser.uid, newPersonName.trim());
+      // Import Firebase Realtime Database functions
+      const { ref, push, set } = await import("firebase/database");
+      const { rtdb } = await import("@/lib/firebase");
       
-      if (newPerson) {
-        console.log("Person added successfully:", newPerson);
-        
-        // Call the parent component's add function
-        onAddNewPerson(newPersonName.trim());
-        
-        // Reset form
-        setNewPersonName("");
-        setIsAddingPerson(false);
-        
-        toast({
-          title: "Person added",
-          description: `${newPersonName.trim()} has been added to your contacts`,
-        });
-      } else {
-        throw new Error("Failed to create person document");
-      }
+      const peopleRef = ref(rtdb, `users/${currentUser.uid}/people`);
+      const newPersonRef = push(peopleRef);
+      
+      const personData = {
+        name: newPersonName.trim(),
+        createdAt: Date.now(),
+      };
+      
+      await set(newPersonRef, personData);
+      
+      console.log("Person added successfully:", { id: newPersonRef.key, ...personData });
+      
+      // Call the parent component's add function
+      onAddNewPerson(newPersonName.trim());
+      
+      // Reset form
+      setNewPersonName("");
+      setIsAddingPerson(false);
+      
+      toast({
+        title: "Person added",
+        description: `${newPersonName.trim()} has been added to your contacts`,
+      });
     } catch (error: any) {
       console.error("Error adding person:", error);
       console.error("Error details:", {
