@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Send, Bot, User, Sparkles } from "lucide-react";
+import { Send, Bot, User, Sparkles, Phone } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Conversation, Person } from "./MemoryApp";
 import { useAuth } from "@/contexts/AuthContext";
@@ -43,6 +43,8 @@ export const ChatInterface = ({ conversations, people }: ChatInterfaceProps) => 
   ]);
   const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [isInitiatingCall, setIsInitiatingCall] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { currentUser } = useAuth();
 
@@ -149,6 +151,59 @@ export const ChatInterface = ({ conversations, people }: ChatInterfaceProps) => 
     }
   };
 
+  const initiateVapiCall = async () => {
+    if (!phoneNumber.trim()) {
+      alert("Please enter a valid phone number");
+      return;
+    }
+
+    setIsInitiatingCall(true);
+    
+    try {
+      // Get Firebase ID token for authentication
+      const token = currentUser ? await currentUser.getIdToken() : null;
+      
+      const response = await fetch(
+        "https://12484f40-7983-4c27-b7d7-4b2f4efa749b-00-zvkwzd4ad4mt.worf.replit.dev/initiate-vapi-call",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token && { "Authorization": `Bearer ${token}` }),
+          },
+          body: JSON.stringify({
+            phoneNumber: phoneNumber.trim()
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Call initiation failed: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
+        alert(`Call initiated successfully! Call ID: ${result.callId}`);
+        // Add a system message to the chat
+        const callMessage: ChatMessage = {
+          id: Date.now().toString(),
+          content: `📞 Vapi call initiated to ${phoneNumber}. Call ID: ${result.callId}`,
+          isUser: false,
+          timestamp: new Date(),
+        };
+        setMessages(prev => [...prev, callMessage]);
+      } else {
+        throw new Error(result.error || "Call initiation failed");
+      }
+    } catch (error) {
+      console.error("Error initiating call:", error);
+      alert(`Failed to initiate call: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsInitiatingCall(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="text-center">
@@ -250,7 +305,38 @@ export const ChatInterface = ({ conversations, people }: ChatInterfaceProps) => 
         </div>
 
         {/* Input */}
-        <div className="p-4 border-t border-border">
+        <div className="p-4 border-t border-border space-y-3">
+          {/* Phone Call Section */}
+          <div className="flex gap-2 items-end">
+            <div className="flex-1">
+              <Label htmlFor="phoneNumber" className="text-xs text-muted-foreground mb-1 block">
+                Phone Number (for Vapi call)
+              </Label>
+              <Input
+                id="phoneNumber"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                placeholder="+1234567890"
+                className="text-sm"
+                disabled={isInitiatingCall}
+              />
+            </div>
+            <Button 
+              onClick={initiateVapiCall}
+              disabled={!phoneNumber.trim() || isInitiatingCall}
+              size="icon"
+              className="bg-green-600 hover:bg-green-700 text-white"
+              title="Initiate Vapi Call"
+            >
+              {isInitiatingCall ? (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Phone className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+          
+          {/* Chat Input */}
           <div className="flex gap-2">
             <Input
               value={inputValue}
