@@ -1,73 +1,57 @@
-# Welcome to your Lovable project
+# Memory Aid
 
-## Project info
+A memory aid for seniors. It records a conversation, works out who said what, and lets the person ask about it later in plain language.
 
-**URL**: https://lovable.dev/projects/846b37e7-dff8-4e2a-858a-390430dd3247
+I built it to help older people remember conversations, like what the doctor said at an appointment or what a family member asked them to do.
 
-## How can I edit this code?
+## What it does
 
-There are several ways of editing your application.
+You record a conversation in the browser. The app sends the audio off to be transcribed, and the transcript comes back split by speaker with a short summary. You tell it how many people were talking and match each voice to a person. People you add are saved, so the next time you just pick them from a list.
 
-**Use Lovable**
+After that you can ask about it. Type a question such as "what did my daughter say about Sunday?" and the answer comes from your saved conversations. There is also a history page where you can read old conversations segment by segment.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/846b37e7-dff8-4e2a-858a-390430dd3247) and start prompting.
+It handles medications too. Take or upload a photo of a prescription and the app reads the medication, dose and schedule from it. You can fix the list by hand and create calendar reminders for each dose.
 
-Changes made via Lovable will be committed automatically to this repo.
+For people who would rather talk than type, you can enter a phone number and the assistant calls it.
 
-**Use your preferred IDE**
+Everyone signs in with their own account, so one person's conversations and medications stay separate from another's.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## How it works
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+This repo is the frontend: React, TypeScript, Vite, Tailwind and shadcn/ui, with Firebase for sign-in. It is also set up as an Android app through Capacitor (app name "Chatter Memory").
 
-Follow these steps:
+The frontend calls a separate backend over HTTP for transcription, search and the rest:
+
+| Endpoint | Used for |
+|---|---|
+| `/transcribe` | speech to text, split by speaker, plus a summary |
+| `/save-conversation` | storing a conversation once speakers are named |
+| `/rag-query` | answering questions from saved conversations |
+| `/list-all-vectors` | conversation history |
+| `/medication-calendar` | reading a prescription and building reminders |
+| `/initiate-vapi-call` | starting a phone call |
+
+The backend is not in this repo, and the address in the code points at a development server that is no longer running. The app builds and the interface loads, but recording, chat and medications need a backend that serves those endpoints.
+
+## Run it
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+git clone https://github.com/LuciPengu/memory-aid
+cd memory-aid
+npm install
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+`npm run build` makes a production build in `dist/`.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## What I would do next
 
-**Use GitHub Codespaces**
+The first thing is to put the backend in the open next to this repo and read its address from an environment variable.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+The recording screen needs bigger text and fewer steps. The people this is for should not need a tutorial.
 
-## What technologies are used for this project?
+I would also like a family member or carer to be able to see the account, with the senior's permission.
 
-This project is built with:
+## License
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/846b37e7-dff8-4e2a-858a-390430dd3247) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+MIT
